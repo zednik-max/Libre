@@ -123,6 +123,10 @@ MODEL_ENDPOINTS = {
     "llama-4-scout": {
         "url": f"https://us-east5-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/us-east5/endpoints/openapi/chat/completions",
         "model": "meta/llama-4-scout-17b-16e-instruct-maas"
+    },
+    "deepseek-ocr": {
+        "url": f"https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/global/endpoints/openapi/chat/completions",
+        "model": "deepseek-ai/deepseek-ocr-maas"
     }
 }
 
