@@ -297,6 +297,21 @@ curl http://localhost:4000/health
 {"status":"healthy","models":["deepseek-r1","deepseek-v3","minimax-m2","qwen3-235b","llama-3.3-70b","qwen3-thinking","llama-4-maverick","llama-4-scout"]}
 ```
 
+### Test 1.5: Token Cache Status
+
+Check if OAuth2 token caching is working:
+
+```powershell
+curl http://localhost:4000/token-status
+```
+
+**Expected output (after first request):**
+```json
+{"cached":true,"expires_in_seconds":3295,"expires_in_minutes":54.9}
+```
+
+**Note:** The proxy caches OAuth2 tokens for 55 minutes to reduce latency by 50-100ms per request.
+
 ### Test 2: Direct Proxy Test
 
 ```powershell
