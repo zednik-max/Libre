@@ -15,6 +15,12 @@
 7. [Verification & Testing](#verification--testing)
 8. [Troubleshooting](#troubleshooting)
 9. [Available Models](#available-models)
+10. [Adding New Partner Models](#adding-new-partner-models)
+11. [Rebuilding the Docker Image](#rebuilding-the-docker-image)
+12. [Maintenance](#maintenance)
+13. [Security Best Practices](#security-best-practices)
+14. [Cost Management](#cost-management)
+15. [Support & Resources](#support--resources)
 
 ---
 
@@ -455,6 +461,338 @@ docker-compose -f docker-compose.windows.yml logs api | Select-String "error"
 - **Type:** Meta's latest (16e variant)
 - **Best for:** Quick responses, general chat, faster inference
 - **Region:** US East
+
+---
+
+## Adding New Partner Models
+
+Want to add more models from Vertex AI Model Garden? Follow these steps:
+
+### Step 1: Enable the Model in GCP
+
+1. Go to **GCP Console** → **Vertex AI** → **Model Garden**
+2. Search for the model you want to add (e.g., "Gemini 2.0 Flash")
+3. Click on the model and click **Enable**
+4. Note the following information:
+   - **Model ID** (e.g., `google/gemini-2.0-flash-001-maas`)
+   - **Region** where it's available (e.g., `us-central1`)
+   - **Endpoint URL** format
+
+### Step 2: Add Model to vertex-proxy
+
+Edit `vertex-proxy/app.py` and add your new model to the `MODEL_ENDPOINTS` dictionary:
+
+```python
+MODEL_ENDPOINTS = {
+    # ... existing models ...
+
+    # Add your new model here
+    "gemini-2-flash": {
+        "url": f"https://us-central1-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/us-central1/endpoints/openapi/chat/completions",
+        "model": "google/gemini-2.0-flash-001-maas"
+    }
+}
+```
+
+**Important fields:**
+- **Key** (`"gemini-2-flash"`): Friendly name you'll use in LibreChat
+- **url**: Vertex AI endpoint URL (region-specific)
+- **model**: Actual model ID from Model Garden (must end with `-maas`)
+
+**Region endpoints:**
+- `us-central1`: `https://us-central1-aiplatform.googleapis.com/v1/...`
+- `us-west2`: `https://us-west2-aiplatform.googleapis.com/v1/...`
+- `us-east5`: `https://us-east5-aiplatform.googleapis.com/v1/...`
+- `global`: `https://aiplatform.googleapis.com/v1/...`
+
+### Step 3: Add Model to LibreChat Configuration
+
+Edit `librechat.yaml` and add the new model to the models list:
+
+```yaml
+endpoints:
+  custom:
+    - name: 'Vertex-AI'
+      apiKey: 'dummy'
+      baseURL: 'http://vertex-proxy:4000'
+
+      models:
+        default:
+          - 'deepseek-r1'
+          - 'deepseek-v3'
+          - 'minimax-m2'
+          - 'qwen3-235b'
+          - 'llama-3.3-70b'
+          - 'qwen3-thinking'
+          - 'llama-4-maverick'
+          - 'llama-4-scout'
+          - 'gemini-2-flash'  # ← Add your new model here
+```
+
+### Step 4: Rebuild and Restart
+
+After adding the model, you need to rebuild the vertex-proxy Docker image:
+
+```powershell
+# Stop the vertex-proxy container
+docker-compose -f docker-compose.windows.yml stop vertex-proxy
+
+# Rebuild the vertex-proxy image
+docker-compose -f docker-compose.windows.yml build vertex-proxy
+
+# Start the vertex-proxy container
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+
+# Verify the model is available
+curl http://localhost:4000/health
+```
+
+### Step 5: Test Your New Model
+
+1. Restart LibreChat to reload configuration:
+   ```powershell
+   docker-compose -f docker-compose.windows.yml restart api
+   ```
+
+2. Open LibreChat UI: `http://localhost:3080`
+
+3. Select your new model from the dropdown
+
+4. Send a test message
+
+### Example: Adding Claude 3.5 Sonnet
+
+If Claude 3.5 Sonnet becomes available in Vertex AI Model Garden:
+
+**1. Edit `vertex-proxy/app.py`:**
+```python
+"claude-3.5-sonnet": {
+    "url": f"https://us-east5-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/us-east5/endpoints/openapi/chat/completions",
+    "model": "anthropic/claude-3-5-sonnet-20250514-maas"
+}
+```
+
+**2. Edit `librechat.yaml`:**
+```yaml
+models:
+  default:
+    - 'claude-3.5-sonnet'  # Add to list
+```
+
+**3. Rebuild:**
+```powershell
+docker-compose -f docker-compose.windows.yml build vertex-proxy
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+docker-compose -f docker-compose.windows.yml restart api
+```
+
+---
+
+## Rebuilding the Docker Image
+
+There are several scenarios where you might need to rebuild the vertex-proxy Docker image:
+
+### When to Rebuild
+
+✅ **You added a new model** to `MODEL_ENDPOINTS` in `app.py`
+✅ **You modified the proxy logic** in `app.py`
+✅ **You updated dependencies** in `requirements.txt`
+✅ **You changed the project ID** in `app.py`
+✅ **You want to apply bug fixes** or improvements
+
+### Method 1: Full Rebuild (Recommended)
+
+This method ensures a clean build with no cached layers:
+
+```powershell
+# Stop the vertex-proxy container
+docker-compose -f docker-compose.windows.yml stop vertex-proxy
+
+# Remove the existing image
+docker rmi vertex-proxy
+
+# Rebuild from scratch (no cache)
+docker-compose -f docker-compose.windows.yml build --no-cache vertex-proxy
+
+# Start the new container
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+
+# Verify it's running
+docker ps | Select-String "vertex-proxy"
+
+# Check logs
+docker-compose -f docker-compose.windows.yml logs vertex-proxy
+```
+
+### Method 2: Quick Rebuild (Faster)
+
+This method uses Docker's layer caching for faster rebuilds:
+
+```powershell
+# Rebuild with cache
+docker-compose -f docker-compose.windows.yml build vertex-proxy
+
+# Restart the container
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+```
+
+### Method 3: Hot Reload (Development Only)
+
+For quick testing without rebuilding, you can copy the updated file directly into the running container:
+
+```powershell
+# Edit app.py, then:
+docker cp vertex-proxy/app.py vertex-proxy:/app/app.py
+
+# Restart the container to reload
+docker-compose -f docker-compose.windows.yml restart vertex-proxy
+
+# Watch logs to verify it loaded
+docker-compose -f docker-compose.windows.yml logs -f vertex-proxy
+```
+
+**Warning:** This method is only for testing. Always do a proper rebuild for production.
+
+### Method 4: Automated Rebuild Script
+
+Create a PowerShell script for one-command rebuilds:
+
+**rebuild-vertex-proxy.ps1:**
+```powershell
+# Vertex Proxy Rebuild Script
+Write-Host "🔧 Stopping vertex-proxy..." -ForegroundColor Yellow
+docker-compose -f docker-compose.windows.yml stop vertex-proxy
+
+Write-Host "🗑️  Removing old image..." -ForegroundColor Yellow
+docker rmi vertex-proxy -f
+
+Write-Host "🔨 Building new image (no cache)..." -ForegroundColor Cyan
+docker-compose -f docker-compose.windows.yml build --no-cache vertex-proxy
+
+Write-Host "🚀 Starting vertex-proxy..." -ForegroundColor Green
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+
+Write-Host "⏳ Waiting 5 seconds for startup..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
+
+Write-Host "✅ Testing health endpoint..." -ForegroundColor Green
+curl http://localhost:4000/health
+
+Write-Host "📋 Recent logs:" -ForegroundColor Cyan
+docker-compose -f docker-compose.windows.yml logs vertex-proxy | Select-Object -Last 20
+
+Write-Host "`n✨ Rebuild complete!" -ForegroundColor Green
+```
+
+**Usage:**
+```powershell
+# Make script executable (first time only)
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
+# Run the script
+.\rebuild-vertex-proxy.ps1
+```
+
+### Verifying the Rebuild
+
+After rebuilding, always verify the changes took effect:
+
+**1. Check image build date:**
+```powershell
+docker images | Select-String "vertex-proxy"
+```
+
+**2. Verify container is running:**
+```powershell
+docker ps | Select-String "vertex-proxy"
+```
+
+**3. Test health endpoint:**
+```powershell
+curl http://localhost:4000/health
+```
+
+**Expected output:**
+```json
+{
+  "status": "healthy",
+  "models": ["deepseek-r1", "deepseek-v3", "minimax-m2", "qwen3-235b", "llama-3.3-70b", "qwen3-thinking", "llama-4-maverick", "llama-4-scout", "your-new-model"]
+}
+```
+
+**4. Check logs for errors:**
+```powershell
+docker-compose -f docker-compose.windows.yml logs vertex-proxy | Select-Object -Last 50
+```
+
+**5. Test with a real request:**
+```powershell
+curl -X POST http://localhost:4000/v1/chat/completions `
+  -H "Content-Type: application/json" `
+  -d '{
+    "model": "your-new-model",
+    "messages": [{"role": "user", "content": "Test"}],
+    "stream": false
+  }'
+```
+
+### Troubleshooting Rebuild Issues
+
+**Issue: Build fails with "no such file or directory"**
+
+**Solution:** Ensure you're in the LibreChat root directory and `vertex-proxy/` exists:
+```powershell
+# Check current directory
+Get-Location
+
+# List vertex-proxy files
+Get-ChildItem vertex-proxy
+```
+
+**Issue: Old code still running after rebuild**
+
+**Solution:** Force remove the container and image:
+```powershell
+docker-compose -f docker-compose.windows.yml down vertex-proxy
+docker rmi vertex-proxy -f
+docker-compose -f docker-compose.windows.yml build --no-cache vertex-proxy
+docker-compose -f docker-compose.windows.yml up -d vertex-proxy
+```
+
+**Issue: Port 4000 already in use**
+
+**Solution:** Stop the existing container first:
+```powershell
+# Find process using port 4000
+Get-NetTCPConnection -LocalPort 4000
+
+# Stop vertex-proxy
+docker-compose -f docker-compose.windows.yml stop vertex-proxy
+
+# Or kill the process
+Stop-Process -Id <PID>
+```
+
+**Issue: Python dependencies fail to install**
+
+**Solution:** Check `requirements.txt` for typos and rebuild:
+```powershell
+# Validate requirements.txt
+Get-Content vertex-proxy/requirements.txt
+
+# Rebuild with verbose output
+docker-compose -f docker-compose.windows.yml build --no-cache --progress=plain vertex-proxy
+```
+
+### Best Practices
+
+1. **Always test locally** before deploying to production
+2. **Document your changes** in comments within `app.py`
+3. **Keep backups** of working configurations
+4. **Use version control** (git) to track changes
+5. **Test with the health endpoint** after every rebuild
+6. **Monitor logs** for errors after deployment
+7. **Update documentation** when adding new models
 
 ---
 
