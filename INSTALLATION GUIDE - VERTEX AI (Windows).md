@@ -531,6 +531,30 @@ docker-compose -f docker-compose.windows.yml restart vertex-proxy
 
 ---
 
+## Optional: Enable Web Search
+
+Want to give your AI agents the ability to search the web? See the **WEB SEARCH SETUP GUIDE.md** for detailed instructions.
+
+**Quick Setup:**
+
+1. **Get API keys** (both have free tiers):
+   - Serper API: https://serper.dev/
+   - Jina API: https://jina.ai/
+
+2. **Add to .env**:
+   ```bash
+   SERPER_API_KEY=your_serper_key
+   JINA_API_KEY=your_jina_key
+   ```
+
+3. **Configuration** is already in `librechat.vertex-ai.yaml`!
+
+4. **Restart LibreChat** and create an agent with Web Search enabled
+
+For complete setup and troubleshooting, see **WEB SEARCH SETUP GUIDE.md**.
+
+---
+
 ## Summary
 
 You've successfully integrated 8 premium AI models from GCP Vertex AI into LibreChat! 🎉

@@ -51,3 +51,22 @@ endpoints:
 
       # Don't drop parameters - let the proxy handle them
       dropParams: []
+
+# Web Search Configuration
+# Enables web search capabilities for AI agents
+webSearch:
+  # Search Provider: Serper (Google Search API)
+  serperApiKey: '${SERPER_API_KEY}'
+  searchProvider: 'serper'
+
+  # Content Scraper: Also using Serper (supports both search and scraping)
+  scraperProvider: 'serper'
+  scraperTimeout: 10000  # 10 seconds timeout
+
+  # Reranker: Jina AI for result ranking and relevance
+  jinaApiKey: '${JINA_API_KEY}'
+  # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
+  rerankerType: 'jina'
+
+  # Safe search level: off, moderate, strict
+  safeSearch: 'moderate'
