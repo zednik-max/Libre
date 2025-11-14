@@ -40,6 +40,7 @@ MODEL_ENDPOINTS = {
 
 - `GET /health` - Health check, returns available models
 - `GET /token-status` - Check OAuth2 token cache status (shows if cached and time remaining)
+- `GET /retry-config` - View retry configuration and exponential backoff settings
 - `GET /v1/models` - List available models (OpenAI-compatible)
 - `POST /v1/chat/completions` - Chat completions (OpenAI-compatible)
 - `POST /chat/completions` - Alternative chat completions endpoint
@@ -167,6 +168,71 @@ The proxy supports multiple endpoints per model for improved availability and pe
     "model": "deepseek-ai/deepseek-r1-0528-maas"
 }
 ```
+
+### Exponential Backoff Retries
+
+The proxy implements intelligent retry logic with exponential backoff to handle transient failures:
+
+- **Configurable retries:** Default 3 retry attempts per endpoint
+- **Exponential delays:** Delays increase exponentially (2s → 5s → 12.5s → 31.25s)
+- **Jitter:** Random ±20% variation prevents thundering herd
+- **Per-endpoint retries:** Each regional endpoint gets full retry attempts
+- **Maximum delay cap:** Configurable maximum delay (default: 60s)
+
+**Configuration in app.py:**
+```python
+RETRY_CONFIG = {
+    "max_retries": 3,          # Number of retry attempts
+    "base_delay": 2,           # Base delay in seconds
+    "multiplier": 2.5,         # Exponential multiplier
+    "max_delay": 60,           # Maximum delay cap
+    "jitter": True,            # Enable jitter
+    "jitter_factor": 0.2       # ±20% variation
+}
+```
+
+**Formula:**
+```
+delay = min(base_delay * (multiplier^attempt), max_delay) ± jitter
+```
+
+**Example Delays (with base=2, multiplier=2.5):**
+- Attempt 1: ~2.0s (±0.4s)
+- Attempt 2: ~5.0s (±1.0s)
+- Attempt 3: ~12.5s (±2.5s)
+- Attempt 4: ~31.25s (±6.25s)
+
+**Check Configuration:**
+```bash
+curl http://localhost:4000/retry-config
+```
+
+**Response:**
+```json
+{
+  "config": {
+    "max_retries": 3,
+    "base_delay": 2,
+    "multiplier": 2.5,
+    "max_delay": 60,
+    "jitter": true,
+    "jitter_factor": 0.2
+  },
+  "example_delays": [
+    {"attempt": 0, "delay_seconds": 1.92, "description": "First retry"},
+    {"attempt": 1, "delay_seconds": 5.24, "description": "Retry 2"},
+    {"attempt": 2, "delay_seconds": 11.87, "description": "Retry 3"}
+  ],
+  "formula": "delay = min(2 * (2.5^attempt), 60)",
+  "jitter_info": "±20% random variation"
+}
+```
+
+**Benefits:**
+- **Handles transient failures:** Network blips, temporary unavailability
+- **Prevents overwhelming servers:** Exponential delays give services time to recover
+- **Avoids thundering herd:** Jitter prevents synchronized retries
+- **Configurable:** Adjust retry behavior per your needs
 
 ## Troubleshooting
 

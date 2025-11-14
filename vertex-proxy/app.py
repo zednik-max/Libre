@@ -8,6 +8,7 @@ import httpx
 import json
 import time
 import random
+import asyncio
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleRequest
 import os
@@ -24,6 +25,54 @@ token_cache = {
     "token": None,
     "expires_at": 0
 }
+
+# Retry configuration with exponential backoff
+# This prevents overwhelming failing endpoints and gives them time to recover
+RETRY_CONFIG = {
+    "max_retries": 3,          # Maximum number of retry attempts (0 = no retries)
+    "base_delay": 2,           # Base delay in seconds for first retry
+    "multiplier": 2.5,         # Exponential multiplier (2.5 gives: 2s, 5s, 12.5s, 31.25s)
+    "max_delay": 60,           # Maximum delay cap in seconds
+    "jitter": True,            # Add random jitter (±20%) to prevent thundering herd
+    "jitter_factor": 0.2       # Jitter range: ±20% of calculated delay
+}
+
+def calculate_retry_delay(attempt: int) -> float:
+    """
+    Calculate exponential backoff delay with optional jitter
+
+    Formula: delay = min(base_delay * (multiplier^attempt), max_delay)
+    With jitter: delay ± (delay * jitter_factor)
+
+    Args:
+        attempt: Current retry attempt number (0-indexed)
+
+    Returns:
+        Delay in seconds (float)
+
+    Examples:
+        - Attempt 0: 2.0s
+        - Attempt 1: 5.0s (2 * 2.5^1)
+        - Attempt 2: 12.5s (2 * 2.5^2)
+        - Attempt 3: 31.25s (2 * 2.5^3)
+    """
+    base = RETRY_CONFIG["base_delay"]
+    multiplier = RETRY_CONFIG["multiplier"]
+    max_delay = RETRY_CONFIG["max_delay"]
+
+    # Calculate exponential delay
+    delay = base * (multiplier ** attempt)
+
+    # Apply maximum delay cap
+    delay = min(delay, max_delay)
+
+    # Add jitter if enabled (prevents synchronized retries)
+    if RETRY_CONFIG["jitter"]:
+        jitter_range = delay * RETRY_CONFIG["jitter_factor"]
+        jitter = random.uniform(-jitter_range, jitter_range)
+        delay = max(0.1, delay + jitter)  # Ensure delay is at least 0.1s
+
+    return delay
 
 # Model endpoint mappings with pooling support
 # Models can have single endpoint (dict) or multiple endpoints (list) for load balancing
@@ -166,6 +215,26 @@ async def token_status():
             "message": "No cached token or token expired"
         }
 
+@app.get("/retry-config")
+async def retry_config():
+    """Get current retry configuration with exponential backoff details"""
+    # Calculate example delays
+    example_delays = [
+        {
+            "attempt": i,
+            "delay_seconds": round(calculate_retry_delay(i), 2),
+            "description": "First retry" if i == 0 else f"Retry {i + 1}"
+        }
+        for i in range(RETRY_CONFIG["max_retries"])
+    ]
+
+    return {
+        "config": RETRY_CONFIG,
+        "example_delays": example_delays,
+        "formula": f"delay = min({RETRY_CONFIG['base_delay']} * ({RETRY_CONFIG['multiplier']}^attempt), {RETRY_CONFIG['max_delay']})",
+        "jitter_info": f"±{int(RETRY_CONFIG['jitter_factor'] * 100)}% random variation" if RETRY_CONFIG["jitter"] else "Disabled"
+    }
+
 @app.get("/v1/models")
 async def list_models():
     """OpenAI-compatible models endpoint"""
@@ -225,85 +294,110 @@ async def chat_completions(request: Request):
             endpoints_to_try = [endpoint]
 
         last_error = None
+        retry_count = 0
 
-        for attempt_num, current_endpoint in enumerate(endpoints_to_try):
-            try:
-                # Update URL and model for current endpoint
-                current_url = current_endpoint["url"]
-                body["model"] = current_endpoint["model"]
-                region = current_endpoint.get("region", "unknown")
+        for endpoint_num, current_endpoint in enumerate(endpoints_to_try):
+            # Each endpoint gets max_retries + 1 attempts (initial + retries)
+            max_attempts = RETRY_CONFIG["max_retries"] + 1
 
-                if attempt_num > 0:
-                    print(f"Failover attempt {attempt_num}: trying region {region}")
+            for retry_attempt in range(max_attempts):
+                try:
+                    # Update URL and model for current endpoint
+                    current_url = current_endpoint["url"]
+                    body["model"] = current_endpoint["model"]
+                    region = current_endpoint.get("region", "unknown")
 
-                if stream:
-                    # Streaming response
-                    async def generate():
-                        try:
-                            async with client.stream(
-                                "POST",
-                                current_url,
-                                json=body,
-                                headers=headers
-                            ) as response:
-                                if response.status_code != 200:
-                                    error_text = await response.aread()
-                                    print(f"Error from Vertex AI ({region}): {response.status_code} - {error_text.decode()}")
-                                    yield f"data: {json.dumps({'error': error_text.decode()})}\n\n"
-                                    return
+                    # Log attempt information
+                    if endpoint_num > 0 and retry_attempt == 0:
+                        print(f"Failover to endpoint {endpoint_num + 1}/{len(endpoints_to_try)}: trying region {region}")
+                    elif retry_attempt > 0:
+                        print(f"Retry attempt {retry_attempt}/{RETRY_CONFIG['max_retries']} for region {region}")
 
-                                async for chunk in response.aiter_bytes():
-                                    yield chunk
-                        except Exception as e:
-                            print(f"Streaming error ({region}): {e}")
-                            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                        finally:
-                            await client.aclose()
+                    # Apply exponential backoff delay before retry (not on first attempt)
+                    if retry_attempt > 0:
+                        delay = calculate_retry_delay(retry_attempt - 1)
+                        print(f"Waiting {delay:.1f}s before retry (exponential backoff)...")
+                        await asyncio.sleep(delay)
 
-                    return StreamingResponse(generate(), media_type="text/event-stream")
-                else:
-                    # Non-streaming response
-                    response = await client.post(
-                        current_url,
-                        json=body,
-                        headers=headers
-                    )
+                    retry_count += 1
 
-                    if response.status_code != 200:
-                        error_msg = f"Error from Vertex AI ({region}): {response.status_code} - {response.text}"
-                        print(error_msg)
-                        last_error = error_msg
+                    if stream:
+                        # Streaming response
+                        async def generate():
+                            try:
+                                async with client.stream(
+                                    "POST",
+                                    current_url,
+                                    json=body,
+                                    headers=headers
+                                ) as response:
+                                    if response.status_code != 200:
+                                        error_text = await response.aread()
+                                        print(f"Error from Vertex AI ({region}): {response.status_code} - {error_text.decode()}")
+                                        yield f"data: {json.dumps({'error': error_text.decode()})}\n\n"
+                                        return
 
-                        # Try next endpoint if available
-                        if attempt_num < len(endpoints_to_try) - 1:
-                            continue
+                                    async for chunk in response.aiter_bytes():
+                                        yield chunk
+                            except Exception as e:
+                                print(f"Streaming error ({region}): {e}")
+                                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                            finally:
+                                await client.aclose()
 
-                        # No more endpoints to try
-                        await client.aclose()
-                        raise HTTPException(
-                            status_code=response.status_code,
-                            detail=response.text
+                        return StreamingResponse(generate(), media_type="text/event-stream")
+                    else:
+                        # Non-streaming response
+                        response = await client.post(
+                            current_url,
+                            json=body,
+                            headers=headers
                         )
 
-                    # Success!
+                        if response.status_code != 200:
+                            error_msg = f"Error from Vertex AI ({region}): {response.status_code} - {response.text}"
+                            print(error_msg)
+                            last_error = error_msg
+
+                            # Try next retry attempt if available
+                            if retry_attempt < RETRY_CONFIG["max_retries"]:
+                                continue
+
+                            # Max retries reached for this endpoint, try next endpoint
+                            if endpoint_num < len(endpoints_to_try) - 1:
+                                break  # Break retry loop, continue to next endpoint
+
+                            # No more endpoints to try
+                            await client.aclose()
+                            raise HTTPException(
+                                status_code=response.status_code,
+                                detail=response.text
+                            )
+
+                        # Success!
+                        await client.aclose()
+                        print(f"Request succeeded after {retry_count} total attempt(s)")
+                        return JSONResponse(content=response.json())
+
+                except HTTPException:
                     await client.aclose()
-                    return JSONResponse(content=response.json())
+                    raise
+                except Exception as e:
+                    error_msg = f"Request error ({region}): {e}"
+                    print(error_msg)
+                    last_error = error_msg
 
-            except HTTPException:
-                await client.aclose()
-                raise
-            except Exception as e:
-                error_msg = f"Request error ({region}): {e}"
-                print(error_msg)
-                last_error = error_msg
+                    # Try next retry attempt if available
+                    if retry_attempt < RETRY_CONFIG["max_retries"]:
+                        continue
 
-                # Try next endpoint if available
-                if attempt_num < len(endpoints_to_try) - 1:
-                    continue
+                    # Max retries reached for this endpoint, try next endpoint
+                    if endpoint_num < len(endpoints_to_try) - 1:
+                        break  # Break retry loop, continue to next endpoint
 
-                # No more endpoints to try
-                await client.aclose()
-                raise HTTPException(status_code=500, detail=str(e))
+                    # No more endpoints to try
+                    await client.aclose()
+                    raise HTTPException(status_code=500, detail=str(e))
 
         # Should not reach here, but just in case
         await client.aclose()
