@@ -313,6 +313,37 @@ curl http://localhost:4000/token-status
 
 **Note:** The proxy caches OAuth2 tokens for 55 minutes to reduce latency by 50-100ms per request.
 
+### Test 1.6: Retry Configuration
+
+Check the exponential backoff retry settings:
+
+```powershell
+curl http://localhost:4000/retry-config
+```
+
+**Expected output:**
+```json
+{
+  "config": {
+    "max_retries": 3,
+    "base_delay": 2,
+    "multiplier": 2.5,
+    "max_delay": 60,
+    "jitter": true,
+    "jitter_factor": 0.2
+  },
+  "example_delays": [
+    {"attempt": 0, "delay_seconds": 1.92, "description": "First retry"},
+    {"attempt": 1, "delay_seconds": 5.24, "description": "Retry 2"},
+    {"attempt": 2, "delay_seconds": 11.87, "description": "Retry 3"}
+  ],
+  "formula": "delay = min(2 * (2.5^attempt), 60)",
+  "jitter_info": "±20% random variation"
+}
+```
+
+**Note:** The proxy uses exponential backoff to retry failed requests (2s → 5s → 12.5s → 31.25s) with jitter to prevent thundering herd.
+
 ### Test 2: Direct Proxy Test
 
 ```powershell
@@ -526,6 +557,70 @@ Selected endpoint in region: us-central1
         "weight": 20  # Backup
     }
 ]
+```
+
+### Exponential Backoff Retries
+
+The vertex-proxy implements **intelligent retry logic** with exponential backoff to handle transient failures gracefully:
+
+✅ **Automatic Retries:** Failed requests are automatically retried up to 3 times
+✅ **Exponential Delays:** Retry delays increase exponentially (2s → 5s → 12.5s)
+✅ **Jitter:** Random variation (±20%) prevents synchronized retries (thundering herd)
+✅ **Per-Endpoint:** Each regional endpoint gets full retry attempts
+✅ **Configurable:** Easily adjust retry behavior in `app.py`
+
+**Default Configuration:**
+```python
+RETRY_CONFIG = {
+    "max_retries": 3,      # 3 retry attempts
+    "base_delay": 2,       # Start with 2 seconds
+    "multiplier": 2.5,     # Exponential increase
+    "max_delay": 60,       # Cap at 60 seconds
+    "jitter": True,        # Add ±20% randomness
+}
+```
+
+**Example Retry Sequence:**
+```
+Request 1: Fails instantly
+↓
+Wait ~2.0s (±0.4s jitter)
+Request 2: Fails
+↓
+Wait ~5.0s (±1.0s jitter)
+Request 3: Fails
+↓
+Wait ~12.5s (±2.5s jitter)
+Request 4: Succeeds! ✅
+```
+
+**Logs During Retries:**
+```
+Error from Vertex AI (us-west2): 503 - Service Unavailable
+Retry attempt 1/3 for region us-west2
+Waiting 2.1s before retry (exponential backoff)...
+Error from Vertex AI (us-west2): 503 - Service Unavailable
+Retry attempt 2/3 for region us-west2
+Waiting 5.3s before retry (exponential backoff)...
+Request succeeded after 3 total attempt(s)
+```
+
+**Benefits:**
+- **Resilient:** Handles temporary network issues and API throttling
+- **Efficient:** Gives failing services time to recover
+- **Prevents overload:** Exponential delays prevent hammering failing endpoints
+
+**To customize,** edit `RETRY_CONFIG` in `vertex-proxy/app.py`:
+```python
+# Example: More aggressive retries
+RETRY_CONFIG = {
+    "max_retries": 5,      # 5 retries instead of 3
+    "base_delay": 1,       # Start with 1 second
+    "multiplier": 2,       # Double each time
+    "max_delay": 30,       # Max 30 seconds
+    "jitter": True,
+}
+# Results in: 1s → 2s → 4s → 8s → 16s → 30s (capped)
 ```
 
 ---

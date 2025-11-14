@@ -717,6 +717,24 @@ def select_endpoint(model_id):
 - ✅ Load distribution across regions
 - ✅ Backward compatible with single endpoints
 
+**Exponential Backoff Retries:** ✅ Enhanced in pooling implementation
+- Each endpoint retries failed requests with exponential backoff
+- Configurable retry attempts (default: 3)
+- Formula: `delay = base_delay * (multiplier^attempt) ± jitter`
+- Example delays: 2s → 5s → 12.5s → 31.25s
+- Jitter prevents thundering herd (±20% random variation)
+
+```python
+RETRY_CONFIG = {
+    "max_retries": 3,
+    "base_delay": 2,
+    "multiplier": 2.5,
+    "max_delay": 60,
+    "jitter": True,
+    "jitter_factor": 0.2
+}
+```
+
 ### 4. Rate Limiting
 
 **Add:**
