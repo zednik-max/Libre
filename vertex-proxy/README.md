@@ -127,6 +127,47 @@ curl http://localhost:4000/token-status
 }
 ```
 
+### Model Pooling (Load Balancing & Failover)
+
+The proxy supports multiple endpoints per model for improved availability and performance:
+
+- **Weighted load balancing:** Distribute traffic across regions based on weights
+- **Automatic failover:** If one endpoint fails, automatically tries the next one
+- **Lower latency:** Route to closer regions
+- **Better availability:** Continue working even if one region is down
+
+**Example Configuration:**
+
+```python
+"deepseek-v3": [
+    {
+        "url": "https://us-west2-aiplatform.googleapis.com/...",
+        "model": "deepseek-ai/deepseek-v3.1-maas",
+        "region": "us-west2",
+        "weight": 70  # Gets 70% of traffic
+    },
+    {
+        "url": "https://us-central1-aiplatform.googleapis.com/...",
+        "model": "deepseek-ai/deepseek-v3.1-maas",
+        "region": "us-central1",
+        "weight": 30  # Gets 30% of traffic
+    }
+]
+```
+
+**Benefits:**
+- **Load distribution:** 70% of requests go to us-west2, 30% to us-central1
+- **Automatic failover:** If us-west2 is down, all requests automatically go to us-central1
+- **Geographic optimization:** Route more traffic to your closest region
+
+**Backward Compatible:** Single endpoints still work exactly as before:
+```python
+"deepseek-r1": {
+    "url": "https://...",
+    "model": "deepseek-ai/deepseek-r1-0528-maas"
+}
+```
+
 ## Troubleshooting
 
 **Token errors**: Verify service account has `roles/aiplatform.user` permission

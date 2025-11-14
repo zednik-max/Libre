@@ -639,6 +639,8 @@ def get_access_token():
 
 ### 2. Metrics & Logging
 
+**Status:** 🔜 Planned (not yet implemented)
+
 **Add:**
 - Request/response logging
 - Latency metrics per model
@@ -661,20 +663,59 @@ async def chat_completions(request: Request):
     request_latency.labels(model=model_id).observe(time.time() - start_time)
 ```
 
-### 3. Model Pooling
+### 3. Model Pooling ✅ **IMPLEMENTED**
 
-**Idea:** Load-balance between multiple endpoints
+**Status:** ✅ Completed
+
+**Implementation:**
 
 ```python
-MODEL_ENDPOINTS = {
-    "deepseek-v3": [
-        {"url": "...", "region": "us-west2", "weight": 80},
-        {"url": "...", "region": "us-east1", "weight": 20},
-    ]
-}
+# Weighted load balancing with automatic failover
+"deepseek-v3": [
+    {
+        "url": "https://us-west2-aiplatform.googleapis.com/...",
+        "model": "deepseek-ai/deepseek-v3.1-maas",
+        "region": "us-west2",
+        "weight": 70  # Gets 70% of traffic
+    },
+    {
+        "url": "https://us-central1-aiplatform.googleapis.com/...",
+        "model": "deepseek-ai/deepseek-v3.1-maas",
+        "region": "us-central1",
+        "weight": 30  # Gets 30% of traffic
+    }
+]
+
+def select_endpoint(model_id):
+    """Weighted random selection for load balancing"""
+    endpoints = MODEL_ENDPOINTS.get(model_id)
+
+    # Single endpoint (backward compatible)
+    if isinstance(endpoints, dict):
+        return endpoints, False
+
+    # Multiple endpoints - weighted selection
+    if isinstance(endpoints, list):
+        total_weight = sum(ep.get("weight", 1) for ep in endpoints)
+        random_value = random.uniform(0, total_weight)
+
+        current_weight = 0
+        for endpoint in endpoints:
+            current_weight += endpoint.get("weight", 1)
+            if random_value <= current_weight:
+                return endpoint, True
 ```
 
-**Benefit:** Better availability, lower latency
+**Failover Logic:**
+- If primary endpoint fails, automatically tries backup endpoints
+- Logs failover attempts for monitoring
+- Continues until successful or all endpoints exhausted
+
+**Benefits achieved:**
+- ✅ Better availability (automatic failover)
+- ✅ Lower latency (weighted routing to closer regions)
+- ✅ Load distribution across regions
+- ✅ Backward compatible with single endpoints
 
 ### 4. Rate Limiting
 

@@ -15,12 +15,13 @@
 7. [Verification & Testing](#verification--testing)
 8. [Troubleshooting](#troubleshooting)
 9. [Available Models](#available-models)
-10. [Adding New Partner Models](#adding-new-partner-models)
-11. [Rebuilding the Docker Image](#rebuilding-the-docker-image)
-12. [Maintenance](#maintenance)
-13. [Security Best Practices](#security-best-practices)
-14. [Cost Management](#cost-management)
-15. [Support & Resources](#support--resources)
+10. [Performance Features](#performance-features)
+11. [Adding New Partner Models](#adding-new-partner-models)
+12. [Rebuilding the Docker Image](#rebuilding-the-docker-image)
+13. [Maintenance](#maintenance)
+14. [Security Best Practices](#security-best-practices)
+15. [Cost Management](#cost-management)
+16. [Support & Resources](#support--resources)
 
 ---
 
@@ -476,6 +477,56 @@ docker-compose -f docker-compose.windows.yml logs api | Select-String "error"
 - **Type:** Meta's latest (16e variant)
 - **Best for:** Quick responses, general chat, faster inference
 - **Region:** US East
+
+---
+
+## Performance Features
+
+### Model Pooling (Load Balancing & Failover)
+
+The vertex-proxy supports **model pooling**, which allows you to configure multiple endpoints for the same model across different regions. This provides:
+
+✅ **Load Balancing:** Distribute traffic across regions using weighted routing
+✅ **Automatic Failover:** If one region fails, requests automatically go to backup regions
+✅ **Lower Latency:** Route more traffic to regions closer to you
+✅ **Better Availability:** System continues working even if one region is down
+
+**Example:** The pre-configured `deepseek-v3` model uses pooling with two regions:
+- **70% of traffic** → us-west2 (primary)
+- **30% of traffic** → us-central1 (backup)
+
+If us-west2 goes down, **100% of traffic automatically goes to us-central1**.
+
+**Logs show which region was selected:**
+```
+Selected endpoint in region: us-west2
+```
+
+**During failover:**
+```
+Error from Vertex AI (us-west2): 503 - Service Unavailable
+Failover attempt 1: trying region us-central1
+Selected endpoint in region: us-central1
+```
+
+**To add pooling to other models,** edit `vertex-proxy/app.py`:
+
+```python
+"your-model": [
+    {
+        "url": "https://region1-aiplatform.googleapis.com/...",
+        "model": "provider/model-id-maas",
+        "region": "region1",
+        "weight": 80  # Primary
+    },
+    {
+        "url": "https://region2-aiplatform.googleapis.com/...",
+        "model": "provider/model-id-maas",
+        "region": "region2",
+        "weight": 20  # Backup
+    }
+]
+```
 
 ---
 
