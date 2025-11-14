@@ -1,0 +1,85 @@
+# Docker Compose Configuration for Windows
+# Optimized for Windows 11 with GCP Vertex AI integration
+# Removes user mapping issues that cause permission errors on Windows
+
+services:
+  api:
+    container_name: LibreChat
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+      - rag_api
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3080
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - MEILI_HOST=http://meilisearch:7700
+      - RAG_PORT=8000
+      - RAG_API_URL=http://rag_api:8000
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml
+      - ./images:/app/client/public/images
+      - ./.env:/app/.env
+
+  mongodb:
+    container_name: chat-mongodb
+    image: mongo
+    restart: always
+    command: mongod --noauth
+    volumes:
+      - mongodb_data:/data/db
+
+  meilisearch:
+    container_name: chat-meilisearch
+    image: getmeili/meilisearch:v1.12.3
+    restart: always
+    environment:
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+
+  vectordb:
+    container_name: vectordb
+    image: pgvector/pgvector:0.8.0-pg15-trixie
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    restart: always
+    volumes:
+      - pgdata2:/var/lib/postgresql/data
+
+  rag_api:
+    container_name: rag_api
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    environment:
+      - DB_HOST=vectordb
+      - RAG_PORT=8000
+    restart: always
+    depends_on:
+      - vectordb
+    env_file:
+      - .env
+
+  # Custom Vertex AI OAuth2 Proxy
+  vertex-proxy:
+    build: ./vertex-proxy
+    container_name: vertex-proxy
+    volumes:
+      - ./gcp-sa-key.json:/app/gcp-sa-key.json
+    ports:
+      - "4000:4000"
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-sa-key.json
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  meilisearch_data:
+  pgdata2:

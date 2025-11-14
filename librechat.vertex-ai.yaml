@@ -1,0 +1,52 @@
+# LibreChat Configuration for GCP Vertex AI Model Garden
+# This configuration adds 8 premium AI models via custom OAuth2 proxy
+
+version: 1.2.1
+
+cache: true
+
+interface:
+  privacyPolicy:
+    externalUrl: 'https://librechat.ai/privacy-policy'
+    openNewTab: true
+  termsOfService:
+    externalUrl: 'https://librechat.ai/tos'
+    openNewTab: true
+  endpointsMenu: true
+  modelSelect: true
+  parameters: true
+  sidePanel: true
+  presets: true
+  prompts: true
+  bookmarks: true
+  multiConvo: true
+  agents: true
+
+registration:
+  socialLogins: ['github', 'google', 'discord', 'openid']
+
+endpoints:
+  custom:
+    # GCP Vertex AI Models via Custom OAuth2 Proxy
+    - name: 'Vertex-AI'
+      apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
+      baseURL: 'http://vertex-proxy:4000'
+
+      models:
+        default:
+          - 'deepseek-r1'
+          - 'deepseek-v3'
+          - 'minimax-m2'
+          - 'qwen3-235b'
+          - 'llama-3.3-70b'
+          - 'qwen3-thinking'
+          - 'llama-4-maverick'
+          - 'llama-4-scout'
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'deepseek-v3'
+      modelDisplayLabel: 'GCP Vertex AI'
+
+      # Don't drop parameters - let the proxy handle them
+      dropParams: []
