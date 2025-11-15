@@ -70,3 +70,18 @@ webSearch:
 
   # Safe search level: off, moderate, strict
   safeSearch: 'moderate'
+
+# Model Context Protocol (MCP) Servers
+# Extends LibreChat with external tools and capabilities
+mcp:
+  servers:
+    # Judge0 Code Execution - 70+ Programming Languages
+    judge0:
+      command: node
+      args:
+        - ./mcp-servers/judge0/index.js
+      env:
+        RAPIDAPI_KEY: ${RAPIDAPI_KEY}
+      # Optional: Use self-hosted Judge0
+      # env:
+      #   JUDGE0_BASE_URL: http://localhost:2358

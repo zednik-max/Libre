@@ -1,0 +1,35 @@
+{
+  "name": "@librechat/judge0-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for executing code in 70+ programming languages using Judge0 CE API",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "mcp",
+    "judge0",
+    "code-execution",
+    "librechat",
+    "programming-languages",
+    "sandbox"
+  ],
+  "author": "LibreChat Community",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danny-avila/LibreChat",
+    "directory": "mcp-servers/judge0"
+  }
+}
