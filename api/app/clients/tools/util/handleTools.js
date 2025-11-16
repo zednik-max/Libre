@@ -3,8 +3,9 @@ const {
   EnvVar,
   Calculator,
   createSearchTool,
-  createCodeExecutionTool,
+  // createCodeExecutionTool, // Replaced with Judge0
 } = require('@librechat/agents');
+const { createJudge0ExecutionTool } = require('~/server/services/Tools/judge0');
 const {
   checkAccess,
   createSafeUser,
@@ -248,29 +249,21 @@ const loadTools = async ({
 
   for (const tool of tools) {
     if (tool === Tools.execute_code) {
+      // JUDGE0 INTEGRATION: Replaced LibreChat Code Interpreter with Judge0
       requestedTools[tool] = async () => {
         const authValues = await loadAuthValues({
           userId: user,
           authFields: [EnvVar.CODE_API_KEY],
         });
         const codeApiKey = authValues[EnvVar.CODE_API_KEY];
-        const { files, toolContext } = await primeCodeFiles(
-          {
-            ...options,
-            agentId: agent?.id,
-          },
-          codeApiKey,
-        );
-        if (toolContext) {
-          toolContextMap[tool] = toolContext;
-        }
-        const CodeExecutionTool = createCodeExecutionTool({
+
+        // Create Judge0 tool instead of LibreChat Code Interpreter
+        const Judge0Tool = createJudge0ExecutionTool({
           user_id: user,
-          files,
-          ...authValues,
+          apiKey: codeApiKey,
         });
-        CodeExecutionTool.apiKey = codeApiKey;
-        return CodeExecutionTool;
+
+        return Judge0Tool;
       };
       continue;
     } else if (tool === Tools.file_search) {
