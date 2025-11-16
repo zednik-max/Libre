@@ -39,6 +39,38 @@ function createJudge0ExecutionTool(config) {
   return {
     apiKey, // Required by LibreChat
 
+    // Tool metadata for function calling
+    type: 'function',
+    function: {
+      name: 'execute_code',
+      description:
+        'Execute code in 70+ programming languages including Python, JavaScript, Java, C++, Go, Rust, and more. Returns execution output, errors, execution time, and memory usage.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description:
+              'The source code to execute. Maximum 65KB. Can be any of 70+ supported programming languages.',
+          },
+          language: {
+            type: 'string',
+            description:
+              'Programming language of the code (e.g., "python", "javascript", "java", "cpp", "go", "rust"). If not specified, will attempt auto-detection.',
+          },
+          stdin: {
+            type: 'string',
+            description: 'Standard input to provide to the program during execution (optional).',
+          },
+          timeout: {
+            type: 'number',
+            description: 'Maximum execution time in seconds. Default is 5 seconds. Maximum is 15.',
+          },
+        },
+        required: ['code'],
+      },
+    },
+
     /**
      * Invoke the tool to execute code
      * @param {Object} params
