@@ -68,8 +68,8 @@ webSearch:
   # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
   rerankerType: 'jina'
 
-  # Safe search level: off, moderate, strict
-  safeSearch: 'moderate'
+  # Safe search level: 0 (off), 1 (moderate), 2 (strict)
+  safeSearch: 1
 
 # NOTE: Judge0 Code Execution is integrated directly into the Code Interpreter
 # No MCP configuration needed! Just click the Code Interpreter button and enter your RapidAPI key.
