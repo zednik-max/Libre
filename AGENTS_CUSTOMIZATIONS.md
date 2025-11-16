@@ -3,7 +3,10 @@
 **Version**: v0.8.1-rc1
 **Last Updated**: 2025-11-16
 **Audience**: Developers, DevOps, System Integrators
-**For End Users**: See [AGENTS.md](./AGENTS.md) for user guide
+
+**Related Documentation**:
+- **For AI Coding Agents**: See [AGENTS.md](./AGENTS.md) - Development environment guide (agents.md format)
+- **For End Users**: See [LibreChat - Agents.md](./LibreChat%20-%20Agents.md) - User guide for LibreChat's agent features
 
 ---
 
@@ -1669,7 +1672,9 @@ migrateAssistantsToAgents().then(() => {
 
 ## Reference Links
 
-- **Main Agent Guide**: [AGENTS.md](./AGENTS.md)
+- **AI Coding Agent Guide**: [AGENTS.md](./AGENTS.md) - Development environment guide (agents.md format)
+- **User Guide**: [LibreChat - Agents.md](./LibreChat%20-%20Agents.md) - End-user agent documentation
+- **Main LibreChat Guide**: [CLAUDE.md](./CLAUDE.md) - Complete LibreChat development guide
 - **LibreChat Docs**: https://docs.librechat.ai/
 - **LangChain Documentation**: https://js.langchain.com/
 - **MCP Protocol Spec**: https://modelcontextprotocol.io/
