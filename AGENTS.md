@@ -2,7 +2,7 @@
 
 **AI Coding Agent Guide for LibreChat**
 
-This file provides context and instructions for AI coding agents working on the LibreChat project. For user-facing agent documentation, see [LibreChat - Agents.md](./LibreChat%20-%20Agents.md). For technical customization details, see [AGENTS_CUSTOMIZATIONS.md](./AGENTS_CUSTOMIZATIONS.md).
+This file provides context and instructions for AI coding agents working on the LibreChat project. For technical implementation details, see [AGENTS_CUSTOMIZATIONS.md](./AGENTS_CUSTOMIZATIONS.md).
 
 ---
 
@@ -649,7 +649,6 @@ docker-compose build --no-cache
 
 ## Additional Resources
 
-- **User Guide**: [LibreChat - Agents.md](./LibreChat%20-%20Agents.md)
 - **Technical Customization**: [AGENTS_CUSTOMIZATIONS.md](./AGENTS_CUSTOMIZATIONS.md)
 - **Main Documentation**: [CLAUDE.md](./CLAUDE.md)
 - **Official Docs**: https://docs.librechat.ai/
