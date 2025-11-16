@@ -52,6 +52,44 @@ endpoints:
       # Don't drop parameters - let the proxy handle them
       dropParams: []
 
+    # Mistral AI
+    - name: 'Mistral'
+      apiKey: '${MISTRAL_API_KEY}'
+      baseURL: 'https://api.mistral.ai/v1'
+
+      models:
+        default:
+          - 'mistral-large-latest'
+          - 'mistral-medium-latest'
+          - 'mistral-small-latest'
+          - 'codestral-latest'
+        fetch: true
+
+      titleConvo: true
+      titleModel: 'mistral-small-latest'
+      modelDisplayLabel: 'Mistral'
+
+      # Mistral requires dropping these parameters to avoid 422 errors
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']
+
+    # Perplexity AI
+    - name: 'Perplexity'
+      apiKey: '${PERPLEXITY_API_KEY}'
+      baseURL: 'https://api.perplexity.ai'
+
+      models:
+        default:
+          - 'llama-3.1-sonar-small-128k-online'
+          - 'llama-3.1-sonar-large-128k-online'
+          - 'llama-3.1-sonar-huge-128k-online'
+          - 'llama-3.1-sonar-small-128k-chat'
+          - 'llama-3.1-sonar-large-128k-chat'
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'llama-3.1-sonar-small-128k-online'
+      modelDisplayLabel: 'Perplexity'
+
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
