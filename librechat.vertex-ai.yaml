@@ -76,10 +76,10 @@ webSearch:
 mcp:
   servers:
     # Judge0 Code Execution - 70+ Programming Languages
+    # Using npm package: @javaguru/server-judge0@1.1.0
+    # Install: npm install -g @javaguru/server-judge0
     judge0:
-      command: node
-      args:
-        - ./mcp-servers/judge0/index.js
+      command: server-judge0
       env:
         RAPIDAPI_KEY: ${RAPIDAPI_KEY}
       # Optional: Use self-hosted Judge0
