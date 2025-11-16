@@ -139,5 +139,5 @@ helm/**/.values.yaml
 /.codeium
 *.local.md
 gcp-sa-key.json
-QUICK-SYNC-GUIDE.txt
-TestJudge0.ps1
+
+
