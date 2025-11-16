@@ -45,14 +45,16 @@ docker-compose -f docker-compose.windows.yml restart api
 **4. Enable in UI**:
 
 **For Agents** (Recommended):
-- Create or edit an Agent
+- Go to **Agent Marketplace** (sidebar) or create **New Agent**
 - In Agent settings, add "Wolfram" tool
 - Save agent
+- [See detailed Agent creation guide](./_UI_NAVIGATION.md#creating-an-agent)
 
 **For Assistants**:
-- Create or edit an Assistant
+- Go to **Assistants** (sidebar) or create **New Assistant**
 - In tools section, enable "Wolfram"
 - Save assistant
+- [See detailed Assistant creation guide](./_UI_NAVIGATION.md#creating-an-assistant-openai)
 
 ---
 

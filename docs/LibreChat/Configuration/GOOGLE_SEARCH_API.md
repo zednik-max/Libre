@@ -153,14 +153,16 @@ docker-compose -f docker-compose.windows.yml restart api
 **2. Enable in Agent or Assistant**:
 
 **For Agents** (Recommended):
-- Create or edit an Agent
+- Go to **Agent Marketplace** (sidebar) or create **New Agent**
 - In Agent settings, add "Google Search" tool
 - Save agent
+- [See detailed Agent creation guide](./_UI_NAVIGATION.md#creating-an-agent)
 
 **For Assistants**:
-- Create or edit an Assistant
+- Go to **Assistants** (sidebar) or create **New Assistant**
 - In tools section, enable "Google Search"
 - Save assistant
+- [See detailed Assistant creation guide](./_UI_NAVIGATION.md#creating-an-assistant-openai)
 
 **3. Test the tool**:
 - Start a new conversation with the Agent/Assistant
