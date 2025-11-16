@@ -67,7 +67,7 @@ bower_components/
 .flooignore
 
 #config file
-librechat.yaml
+#librechat.yaml
 librechat.yml
 
 # Environment
@@ -138,6 +138,9 @@ helm/**/.values.yaml
 /.tabnine/
 /.codeium
 *.local.md
+
+# User Config
 gcp-sa-key.json
+
 
 
