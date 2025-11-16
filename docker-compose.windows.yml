@@ -5,7 +5,10 @@
 services:
   api:
     container_name: LibreChat
-    image: ghcr.io/danny-avila/librechat-dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.judge0
+    image: librechat-judge0:latest
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -25,10 +28,6 @@ services:
       - ./librechat.yaml:/app/librechat.yaml
       - ./images:/app/client/public/images
       - ./.env:/app/.env
-      # Mount source code for Judge0 integration
-      - ./api:/app/api
-      - ./client:/app/client
-      - ./packages:/app/packages
 
   mongodb:
     container_name: chat-mongodb
