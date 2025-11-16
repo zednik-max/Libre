@@ -37,9 +37,15 @@ function createJudge0ExecutionTool(config) {
 
   // Return tool object matching LibreChat's expected interface
   return {
-    apiKey, // Required by LibreChat
+    // Top-level metadata (required by LangChain/LibreChat)
+    name: 'execute_code',
+    description:
+      'Execute code in 70+ programming languages including Python, JavaScript, Java, C++, Go, Rust, and more. Returns execution output, errors, execution time, and memory usage.',
 
-    // Tool metadata for function calling
+    // API key (required by LibreChat)
+    apiKey,
+
+    // Tool metadata for function calling (OpenAI/Anthropic format)
     type: 'function',
     function: {
       name: 'execute_code',
