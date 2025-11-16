@@ -5,6 +5,8 @@
  * Provides code execution in 70+ programming languages
  */
 
+const { z } = require('zod');
+const { DynamicStructuredTool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { Judge0Client } = require('./judge0-client');
 const { detectLanguage, getLanguageId, getLanguageName } = require('./languages');
@@ -16,7 +18,7 @@ const { detectLanguage, getLanguageId, getLanguageName } = require('./languages'
  * @param {string} config.apiKey - RapidAPI key for Judge0
  * @param {string} [config.baseURL] - Optional custom Judge0 endpoint
  * @param {boolean} [config.selfHosted] - Whether using self-hosted Judge0
- * @returns {Object} Tool object with invoke method
+ * @returns {DynamicStructuredTool} LangChain structured tool
  */
 function createJudge0ExecutionTool(config) {
   const { user_id, apiKey, baseURL, selfHosted } = config;
@@ -35,100 +37,58 @@ function createJudge0ExecutionTool(config) {
 
   logger.debug(`[Judge0Tool] Created for user ${user_id}`);
 
-  // Return tool object matching LibreChat's expected interface
-  return {
-    // Top-level metadata (required by LangChain/LibreChat)
+  // Define Zod schema for input validation
+  const schema = z.object({
+    code: z
+      .string()
+      .max(65000)
+      .describe(
+        'The source code to execute. Maximum 65KB. Can be any of 70+ supported programming languages.',
+      ),
+    language: z
+      .string()
+      .optional()
+      .describe(
+        'Programming language of the code (e.g., "python", "javascript", "java", "cpp", "go", "rust"). If not specified, will attempt auto-detection.',
+      ),
+    stdin: z
+      .string()
+      .optional()
+      .describe('Standard input to provide to the program during execution.'),
+    timeout: z
+      .number()
+      .min(1)
+      .max(15)
+      .optional()
+      .default(5)
+      .describe('Maximum execution time in seconds. Default is 5 seconds. Maximum is 15.'),
+  });
+
+  // Create LangChain DynamicStructuredTool
+  const tool = new DynamicStructuredTool({
     name: 'execute_code',
     description:
       'Execute code in 70+ programming languages including Python, JavaScript, Java, C++, Go, Rust, and more. Returns execution output, errors, execution time, and memory usage.',
-
-    // API key (required by LibreChat)
-    apiKey,
-
-    // Tool metadata for function calling (OpenAI/Anthropic format)
-    type: 'function',
-    function: {
-      name: 'execute_code',
-      description:
-        'Execute code in 70+ programming languages including Python, JavaScript, Java, C++, Go, Rust, and more. Returns execution output, errors, execution time, and memory usage.',
-      parameters: {
-        type: 'object',
-        properties: {
-          code: {
-            type: 'string',
-            description:
-              'The source code to execute. Maximum 65KB. Can be any of 70+ supported programming languages.',
-          },
-          language: {
-            type: 'string',
-            description:
-              'Programming language of the code (e.g., "python", "javascript", "java", "cpp", "go", "rust"). If not specified, will attempt auto-detection.',
-          },
-          stdin: {
-            type: 'string',
-            description: 'Standard input to provide to the program during execution (optional).',
-          },
-          timeout: {
-            type: 'number',
-            description: 'Maximum execution time in seconds. Default is 5 seconds. Maximum is 15.',
-          },
-        },
-        required: ['code'],
-      },
-    },
-
-    /**
-     * Invoke the tool to execute code
-     * @param {Object} params
-     * @param {Object} params.args - Tool arguments
-     * @param {string} params.args.code - Source code to execute
-     * @param {string} [params.args.language] - Programming language
-     * @param {string} [params.args.stdin] - Standard input
-     * @param {number} [params.args.timeout] - Timeout in seconds
-     * @param {string} params.name - Tool name
-     * @param {string} params.id - Tool call ID
-     * @param {string} params.type - Tool call type
-     * @returns {Promise<{content: string, artifact?: Object}>}
-     */
-    async invoke({ args, name, id, type }) {
+    schema,
+    func: async ({ code, language, stdin, timeout }) => {
       try {
-        logger.debug(`[Judge0Tool] Invoked: ${name} (${id})`);
-
-        const { code, language, stdin, timeout } = args;
-
-        // Validate input
-        if (!code || typeof code !== 'string') {
-          return {
-            content: formatError('No code provided or invalid code format'),
-          };
-        }
-
-        if (code.length > 65000) {
-          return {
-            content: formatError('Code exceeds maximum size (65KB)'),
-          };
-        }
+        logger.debug(`[Judge0Tool] Executing code for user ${user_id}`);
 
         // Auto-detect language if not provided
         let languageId;
         if (language) {
           languageId = getLanguageId(language);
           if (!languageId) {
-            return {
-              content: formatError(`Unsupported language: ${language}`),
-            };
+            return formatError(`Unsupported language: ${language}`);
           }
         } else {
           languageId = detectLanguage(code);
           if (!languageId) {
-            // Default to Python if detection fails
-            logger.debug('[Judge0Tool] Language detection failed, defaulting to Python');
-            languageId = 71; // Python
+            languageId = 71; // Default to Python
           }
         }
 
         const detectedLanguage = getLanguageName(languageId);
-        logger.debug(`[Judge0Tool] Executing ${detectedLanguage} code (${code.length} chars)`);
 
         // Execute code
         const result = await judge0.execute({
@@ -139,34 +99,29 @@ function createJudge0ExecutionTool(config) {
           memory: 128000,
         });
 
-        // Format response
-        const content = formatOutput(result, detectedLanguage);
-
-        // Return in LibreChat's expected format
-        return {
-          content,
-          // Note: artifact for file outputs can be added in future
-          // artifact: { files: [], session_id: '' }
-        };
+        // Format and return output
+        return formatOutput(result, detectedLanguage);
       } catch (error) {
         logger.error('[Judge0Tool] Execution error:', error);
-        return {
-          content: formatError(`Execution failed: ${error.message}`),
-        };
+        return formatError(`Execution failed: ${error.message}`);
       }
     },
-  };
+  });
+
+  // Attach apiKey for LibreChat's credential system
+  tool.apiKey = apiKey;
+
+  return tool;
 }
 
 /**
- * Format successful or failed execution output for display
+ * Format successful execution output
  * @param {Object} result - Judge0 execution result
- * @param {string} language - Detected language name
+ * @param {string} language - Programming language name
  * @returns {string} Formatted output
  */
 function formatOutput(result, language) {
   if (result.success) {
-    // Successful execution
     let output = `✅ **Code Executed Successfully**\n\n`;
     output += `**Language:** ${language}\n\n`;
     output += `**Output:**\n\`\`\`\n${result.output || '(no output)'}\n\`\`\`\n\n`;
@@ -180,27 +135,20 @@ function formatOutput(result, language) {
 
     return output;
   } else {
-    // Execution failed
-    const statusEmoji = {
-      'Compilation Error': '❌',
-      'Runtime Error': '⚠️',
-      'Time Limit Exceeded': '⏱️',
-      'Memory Limit Exceeded': '💾',
-      'Wrong Answer': '❓',
-      'Internal Error': '🔴',
-    };
-
-    const emoji = statusEmoji[result.status] || '❌';
+    // Error output
+    const emoji =
+      {
+        'Compilation Error': '❌',
+        'Runtime Error': '⚠️',
+        'Time Limit Exceeded': '⏱️',
+        'Memory Limit Exceeded': '💾',
+      }[result.status] || '❌';
 
     let output = `${emoji} **${result.status}**\n\n`;
     output += `**Language:** ${language}\n\n`;
 
     if (result.error) {
       output += `**Error:**\n\`\`\`\n${result.error}\n\`\`\`\n\n`;
-    }
-
-    if (result.stdout) {
-      output += `**Output:**\n\`\`\`\n${result.stdout}\n\`\`\`\n\n`;
     }
 
     if (result.executionTime !== null) {
@@ -215,7 +163,7 @@ function formatOutput(result, language) {
 }
 
 /**
- * Format error messages for display
+ * Format error message
  * @param {string} message - Error message
  * @returns {string} Formatted error
  */
@@ -223,6 +171,4 @@ function formatError(message) {
   return `❌ **Error**\n\n${message}`;
 }
 
-module.exports = {
-  createJudge0ExecutionTool,
-};
+module.exports = { createJudge0ExecutionTool };
