@@ -13,6 +13,7 @@ COPY api/server/controllers/tools.js /app/api/server/controllers/
 # Copy updated frontend files
 COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
 COPY client/src/hooks/Plugins/useAuthCodeTool.ts /app/client/src/hooks/Plugins/
+COPY client/src/hooks/Plugins/useToolToggle.ts /app/client/src/hooks/Plugins/
 
 # Install dev dependencies needed for building
 WORKDIR /app
