@@ -7,7 +7,7 @@
 
 ## What is OPENWEATHER_API_KEY?
 
-**OPENWEATHER_API_KEY** enables the **OpenWeather** plugin in LibreChat, providing real-time weather data and forecasts from the OpenWeather API.
+**OPENWEATHER_API_KEY** enables the **OpenWeather** tool in LibreChat, providing real-time weather data and forecasts from the OpenWeather API.
 
 ### What Users Get
 
@@ -42,9 +42,16 @@ docker-compose -f docker-compose.windows.yml restart api
 ```
 
 **4. Enable in UI**:
-- Select ChatGPT/Azure endpoint
-- Open Plugin Store
-- Enable "OpenWeather"
+
+**For Agents** (Recommended):
+- Create or edit an Agent
+- In Agent settings, add "OpenWeather" tool
+- Save agent
+
+**For Assistants**:
+- Create or edit an Assistant
+- In tools section, enable "OpenWeather"
+- Save assistant
 
 ---
 
@@ -108,8 +115,8 @@ AI: *Uses OpenWeather*
 # In .env
 OPENWEATHER_API_KEY=your-api-key
 
-# Optional: Restrict to specific models
-PLUGIN_MODELS=gpt-4o,gpt-4,gpt-3.5-turbo
+# Optional: Default units (metric, imperial, standard)
+OPENWEATHER_API_UNITS=metric
 ```
 
 ---
@@ -121,10 +128,11 @@ PLUGIN_MODELS=gpt-4o,gpt-4,gpt-3.5-turbo
 - Verify key at https://home.openweathermap.org/api_keys
 - Ensure key is active (not expired)
 
-**Plugin not showing**:
+**Tool not showing in Agent/Assistant**:
 - Check OPENWEATHER_API_KEY in .env
-- Restart LibreChat
-- Select ChatGPT/Azure endpoint
+- Restart LibreChat: `docker-compose restart api`
+- Refresh browser to clear cache
+- Tool appears in Agent/Assistant tools list when key configured
 
 **No weather data**:
 - Check city name spelling

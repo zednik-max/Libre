@@ -7,23 +7,23 @@
 
 ## What are GOOGLE_SEARCH_API_KEY and GOOGLE_CSE_ID?
 
-**GOOGLE_SEARCH_API_KEY** and **GOOGLE_CSE_ID** are configuration variables for LibreChat's **Google Search Plugin**, which allows AI models to search the web using Google's Custom Search Engine API.
+**GOOGLE_SEARCH_API_KEY** and **GOOGLE_CSE_ID** are configuration variables for LibreChat's **Google Search** tool, which allows AI models to search the web using Google's Custom Search Engine API.
 
 ### Key Differences from Other Search Tools
 
 LibreChat offers multiple search capabilities:
 
-| Feature | Google Search Plugin | Web Search (Serper) | Perplexity AI |
+| Feature | Google Search Tool | Web Search (Serper) | Perplexity AI |
 |---------|---------------------|---------------------|---------------|
 | **Service** | Google Custom Search Engine | Serper API | Perplexity Sonar |
 | **API Keys** | GOOGLE_SEARCH_API_KEY + GOOGLE_CSE_ID | SERPER_API_KEY | PERPLEXITY_API_KEY |
-| **Usage** | Plugins system (legacy) | Agent web_search tool | Perplexity endpoint |
+| **Usage** | Agent/Assistant tool | Agent web_search tool | Perplexity endpoint |
 | **Free Tier** | 100 queries/day | 2,500 queries/month | Limited |
 | **Setup Complexity** | High (2 steps) | Low (1 key) | Low (1 key) |
 | **Customization** | High (custom search engine) | Low | None |
 | **Best For** | Custom search scopes, specific sites | General agent searches | Reasoning with search |
 
-**Recommendation**: For new setups, use **Serper API** (simpler) or **Perplexity AI** (advanced). Google Search Plugin is legacy but still supported.
+**Recommendation**: For new setups, use **Serper API** (simpler, works with Agents) or **Perplexity AI** (advanced reasoning with search). Google Search requires more setup but offers high customization.
 
 ---
 
@@ -150,25 +150,22 @@ docker-compose -f docker-compose.windows.yml restart api
 **1. Open LibreChat**:
 - Go to http://localhost:3080
 
-**2. Select a chat endpoint that supports plugins**:
-- Click endpoint dropdown
-- Select **"ChatGPT"**, **"Azure OpenAI"**, or similar
-- Note: Plugins work with GPT-3.5-turbo, GPT-4, and compatible models
+**2. Enable in Agent or Assistant**:
 
-**3. Open Plugin Store**:
-- Click the **"Plugins"** icon (puzzle piece) in the chat input area
-- Or click **"Plugin Store"** in the sidebar
+**For Agents** (Recommended):
+- Create or edit an Agent
+- In Agent settings, add "Google Search" tool
+- Save agent
 
-**4. Enable Google Search**:
-- Find **"Google"** in the plugin list
-- Click the toggle to enable it
-- If prompted for credentials, they should auto-fill from .env
-- Click **"Save"**
+**For Assistants**:
+- Create or edit an Assistant
+- In tools section, enable "Google Search"
+- Save assistant
 
-**5. Test the plugin**:
-- Start a new conversation
+**3. Test the tool**:
+- Start a new conversation with the Agent/Assistant
 - Ask: "Search for the latest news about AI"
-- The model should use the Google Search plugin and return results
+- The model should use the Google Search tool and return results
 
 ---
 
@@ -181,11 +178,8 @@ docker-compose -f docker-compose.windows.yml restart api
 GOOGLE_SEARCH_API_KEY=AIzaSy...          # Your Google API key (39 chars)
 GOOGLE_CSE_ID=abc123def456...             # Your Custom Search Engine ID
 
-# Optional - Plugin Models (if you want to restrict which models can use plugins)
-# PLUGIN_MODELS=gpt-4o,gpt-4o-mini,gpt-4,gpt-4-turbo-preview
-
-# Debug plugins (shows detailed logs)
-# DEBUG_PLUGINS=true
+# Optional - Enable debug logging
+# DEBUG_GOOGLE_SEARCH=true
 ```
 
 ### How It Works Internally

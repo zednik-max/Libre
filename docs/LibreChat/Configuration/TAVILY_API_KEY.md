@@ -7,7 +7,7 @@
 
 ## What is TAVILY_API_KEY?
 
-**TAVILY_API_KEY** enables the **Tavily Search** plugin in LibreChat, which provides AI-optimized web search specifically designed for LLM agents.
+**TAVILY_API_KEY** enables the **Tavily Search** tool in LibreChat, which provides AI-optimized web search specifically designed for LLM agents.
 
 ### What Users Get
 
@@ -40,9 +40,16 @@ docker-compose -f docker-compose.windows.yml restart api
 ```
 
 **4. Enable in UI**:
-- Select ChatGPT/Azure endpoint
-- Open Plugin Store
-- Enable "Tavily Search"
+
+**For Agents** (Recommended):
+- Create or edit an Agent
+- In Agent settings, add "Tavily Search" tool
+- Save agent
+
+**For Assistants**:
+- Create or edit an Assistant
+- In tools section, enable "Tavily Search"
+- Save assistant
 
 ---
 

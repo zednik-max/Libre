@@ -7,7 +7,7 @@
 
 ## What is WOLFRAM_APP_ID?
 
-**WOLFRAM_APP_ID** enables the **Wolfram|Alpha** plugin in LibreChat, providing access to computational intelligence, mathematics, and curated real-time data.
+**WOLFRAM_APP_ID** enables the **Wolfram|Alpha** tool in LibreChat, providing access to computational intelligence, mathematics, and curated real-time data.
 
 ### What Users Get
 
@@ -43,9 +43,16 @@ docker-compose -f docker-compose.windows.yml restart api
 ```
 
 **4. Enable in UI**:
-- Select ChatGPT/Azure endpoint
-- Open Plugin Store
-- Enable "Wolfram"
+
+**For Agents** (Recommended):
+- Create or edit an Agent
+- In Agent settings, add "Wolfram" tool
+- Save agent
+
+**For Assistants**:
+- Create or edit an Assistant
+- In tools section, enable "Wolfram"
+- Save assistant
 
 ---
 
