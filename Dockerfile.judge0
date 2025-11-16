@@ -10,8 +10,11 @@ COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
 # Copy updated frontend dialog
 COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
 
-# Rebuild packages and frontend
+# Install dev dependencies needed for building
 WORKDIR /app
+RUN npm install --include=dev
+
+# Rebuild packages and frontend
 RUN npm run build:packages && npm run frontend
 
 # Set back to production mode
