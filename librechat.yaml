@@ -79,15 +79,15 @@ endpoints:
 
       models:
         default:
-          - 'llama-3.1-sonar-small-128k-online'
-          - 'llama-3.1-sonar-large-128k-online'
-          - 'llama-3.1-sonar-huge-128k-online'
-          - 'llama-3.1-sonar-small-128k-chat'
-          - 'llama-3.1-sonar-large-128k-chat'
+          - 'sonar'                    # Lightweight search (127k context)
+          - 'sonar-pro'                # Advanced search (200k context)
+          - 'sonar-reasoning'          # Real-time reasoning with search (127k)
+          - 'sonar-reasoning-pro'      # DeepSeek-R1 powered reasoning (127k)
+          - 'sonar-deep-research'      # Long-form research reports
         fetch: false
 
       titleConvo: true
-      titleModel: 'llama-3.1-sonar-small-128k-online'
+      titleModel: 'sonar'
       modelDisplayLabel: 'Perplexity'
 
 # Web Search Configuration
