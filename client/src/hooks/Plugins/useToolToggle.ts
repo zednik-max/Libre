@@ -76,13 +76,6 @@ export function useToolToggle({
 
   const [isPinned, setIsPinned] = useLocalStorage<boolean>(`${localStorageKey}pinned`, false);
 
-  // Auto-pin when authenticated via system environment variable
-  useEffect(() => {
-    if (authQuery?.data?.message === 'system_defined' && !isPinned) {
-      setIsPinned(true);
-    }
-  }, [authQuery?.data?.message, isPinned, setIsPinned]);
-
   const handleChange = useCallback(
     ({ e, value }: { e?: React.ChangeEvent<HTMLInputElement>; value: ToolValue }) => {
       if (isAuthenticated !== undefined && !isAuthenticated && setIsDialogOpen) {
