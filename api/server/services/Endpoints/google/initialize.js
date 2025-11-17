@@ -1,4 +1,5 @@
 const path = require('path');
+const { logger } = require('@librechat/data-schemas');
 const { EModelEndpoint, AuthKeys } = require('librechat-data-provider');
 const { getGoogleConfig, isEnabled, loadServiceKey } = require('@librechat/api');
 const { getUserKey, checkUserKeyExpiry } = require('~/server/services/UserService');
@@ -29,10 +30,29 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
         path.join(__dirname, '../../../..', 'data', 'auth.json');
       serviceKey = await loadServiceKey(serviceKeyPath);
       if (!serviceKey) {
+        logger.warn(
+          `[Google/Vertex AI] Service key file found but returned null at: ${serviceKeyPath}`,
+        );
+        logger.warn(
+          '[Google/Vertex AI] Neither GOOGLE_KEY nor valid service key is configured. Google endpoint will not be available.',
+        );
         serviceKey = {};
+      } else {
+        logger.info(
+          `[Google/Vertex AI] Successfully loaded service key for project: ${serviceKey.project_id}`,
+        );
       }
-    } catch (_e) {
-      // Service key loading failed, but that's okay if not required
+    } catch (error) {
+      const serviceKeyPath =
+        process.env.GOOGLE_SERVICE_KEY_FILE ||
+        path.join(__dirname, '../../../..', 'data', 'auth.json');
+      logger.warn(
+        `[Google/Vertex AI] Failed to load service key from: ${serviceKeyPath}`,
+        error.message,
+      );
+      logger.warn(
+        '[Google/Vertex AI] Vertex AI will not be available. To enable: set GOOGLE_KEY env var or provide a valid service account key file.',
+      );
       serviceKey = {};
     }
   }

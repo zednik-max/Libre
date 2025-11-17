@@ -770,13 +770,43 @@ class GoogleClient extends BaseClient {
       }
     } catch (e) {
       error = e;
-      logger.error('[GoogleClient] There was an issue generating the completion', e);
+      const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+      const contextInfo = this.project_id
+        ? `Project: ${this.project_id}, Location: ${loc}`
+        : 'Using Gemini API';
+      logger.error(
+        `[GoogleClient] ${providerType} error generating completion. ${contextInfo}`,
+        {
+          error: e.message,
+          model: this.modelOptions.model,
+          provider: providerType,
+        },
+      );
     }
 
     if (error != null && reply === '') {
-      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${
-        error.message ?? 'The Google provider failed to generate content, please contact the Admin.'
-      }" }`;
+      const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+      const errorDetails = [];
+
+      // Parse error for common issues
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('403') || errorMsg.includes('permission')) {
+        errorDetails.push('Permission denied - check IAM roles');
+      } else if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+        errorDetails.push('Authentication failed - verify API key/service account');
+      } else if (errorMsg.includes('quota') || errorMsg.includes('429')) {
+        errorDetails.push('Quota exceeded - check API limits');
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        errorDetails.push('Model not found - verify model is enabled');
+      }
+
+      const troubleshootingInfo = errorDetails.length > 0
+        ? ` | ${errorDetails.join(' | ')}`
+        : '';
+
+      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${providerType} failed: ${
+        error.message ?? 'Unknown error occurred'
+      }${troubleshootingInfo}" }`;
       throw new Error(errorMessage);
     }
     return reply;
@@ -962,22 +992,6 @@ class GoogleClient extends BaseClient {
 
   getEncoding() {
     return 'cl100k_base';
-  }
-
-  async getVertexTokenCount(text) {
-    /** @type {ChatVertexAI} */
-    const client = this.client ?? this.initializeClient();
-    const connection = client.connection;
-    const gAuthClient = connection.client;
-    const tokenEndpoint = `https://${connection._endpoint}/${connection.apiVersion}/projects/${this.project_id}/locations/${connection._location}/publishers/google/models/${connection.model}/:countTokens`;
-    const result = await gAuthClient.request({
-      url: tokenEndpoint,
-      method: 'POST',
-      data: {
-        contents: [{ role: 'user', parts: [{ text }] }],
-      },
-    });
-    return result;
   }
 
   /**
