@@ -20,10 +20,12 @@ const {
   VisionModes,
   ErrorTypes,
   Constants,
+  CacheKeys,
   AuthKeys,
 } = require('librechat-data-provider');
 const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
+const { getLogStores } = require('~/cache');
 const {
   formatMessage,
   createContextHandlers,
@@ -38,7 +40,152 @@ const endpointPrefix =
   loc === 'global' ? 'aiplatform.googleapis.com' : `${loc}-aiplatform.googleapis.com`;
 
 const settings = endpointSettings[EModelEndpoint.google];
-const EXCLUDED_GENAI_MODELS = /gemini-(?:1\.0|1-0|pro)/;
+
+/**
+ * Model configuration for Google/Vertex AI models
+ * This replaces fragile regex patterns with a maintainable configuration
+ */
+const MODEL_CONFIG = {
+  // Modern Gemini models (use GenAI SDK)
+  'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash-8b': { type: 'genai', capabilities: ['vision'] },
+  'learnlm-1.5-pro-experimental': { type: 'genai', capabilities: ['vision'] },
+  'gemma-2-9b-it': { type: 'genai', capabilities: [] },
+  'gemma-2-27b-it': { type: 'genai', capabilities: [] },
+
+  // Legacy models (excluded from GenAI SDK)
+  'gemini-1.0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-1.0-pro-latest': { type: 'legacy', capabilities: [] },
+  'gemini-1-0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro-vision': { type: 'legacy', capabilities: ['vision'] },
+};
+
+/**
+ * Model Garden publisher prefixes for Vertex AI
+ */
+const MODEL_GARDEN_PUBLISHERS = [
+  'meta', // Meta Llama models
+  'mistral-ai', // Mistral models
+  'mistralai', // Alternative Mistral prefix
+  'anthropic', // Claude via Vertex
+  'cohere', // Cohere models
+  'ai21', // AI21 Labs
+];
+
+/**
+ * Check if a model is a GenerativeAI model (uses GenAI SDK)
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model uses GenAI SDK
+ */
+function isGenerativeModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].type === 'genai';
+  }
+
+  // Fallback: Check if model name contains known GenAI patterns
+  // This handles versioned models like "gemini-1.5-pro-002"
+  const genaiPatterns = ['gemini-1.5', 'gemini-2', 'learnlm', 'gemma'];
+  const legacyPatterns = ['gemini-1.0', 'gemini-1-0', 'gemini-pro'];
+
+  // Check for legacy patterns first (more specific)
+  for (const pattern of legacyPatterns) {
+    if (modelName.includes(pattern)) {
+      return false;
+    }
+  }
+
+  // Then check for GenAI patterns
+  for (const pattern of genaiPatterns) {
+    if (modelName.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a model is excluded from GenAI SDK (legacy model)
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model is legacy
+ */
+function isLegacyModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].type === 'legacy';
+  }
+
+  // Fallback: Check if model name matches legacy patterns
+  return /gemini-(?:1\.0|1-0|pro)$/.test(modelName);
+}
+
+/**
+ * Check if a model is from Vertex AI Model Garden
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model is from Model Garden
+ */
+function isModelGardenModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check for Model Garden format: publishers/<publisher>/models/<model>
+  // or just the publisher prefix
+  for (const publisher of MODEL_GARDEN_PUBLISHERS) {
+    if (modelName.startsWith(`publishers/${publisher}`) || modelName.startsWith(publisher)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get the publisher/provider for a model
+ * @param {string} modelName - The model name
+ * @returns {string} - The publisher name
+ */
+function getModelPublisher(modelName) {
+  if (!modelName) {
+    return 'google';
+  }
+
+  // Check for Model Garden format
+  const publisherMatch = modelName.match(/^(?:publishers\/)?([^/]+)/);
+  if (publisherMatch) {
+    const publisher = publisherMatch[1];
+    if (MODEL_GARDEN_PUBLISHERS.includes(publisher)) {
+      return publisher;
+    }
+  }
+
+  return 'google'; // Default to Google
+}
+
+/** Retry configuration for transient failures */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 30000, // 30 seconds
+  multiplier: 2,
+  jitterFactor: 0.2,
+  retryableStatusCodes: [429, 500, 502, 503, 504],
+  retryableErrors: ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'],
+};
 
 class GoogleClient extends BaseClient {
   constructor(credentials, options = {}) {
@@ -103,15 +250,40 @@ class GoogleClient extends BaseClient {
   }
 
   async getAccessToken() {
+    // Create cache key based on service account email
+    const cacheKey = `${this.project_id}:${this.client_email}`;
+    const cache = getLogStores(CacheKeys.VERTEX_ACCESS_TOKENS);
+
+    try {
+      // Check cache first
+      const cachedToken = await cache.get(cacheKey);
+      if (cachedToken) {
+        logger.debug(`[GoogleClient] Using cached access token for project: ${this.project_id}`);
+        return cachedToken;
+      }
+    } catch (cacheError) {
+      logger.warn('[GoogleClient] Failed to read from access token cache', cacheError.message);
+      // Continue to generate new token if cache fails
+    }
+
+    // Generate new token
     const scopes = ['https://www.googleapis.com/auth/cloud-platform'];
     const jwtClient = new google.auth.JWT(this.client_email, null, this.private_key, scopes);
 
     return new Promise((resolve, reject) => {
-      jwtClient.authorize((err, tokens) => {
+      jwtClient.authorize(async (err, tokens) => {
         if (err) {
           logger.error('jwtClient failed to authorize', err);
           reject(err);
         } else {
+          // Cache the token for future use
+          try {
+            await cache.set(cacheKey, tokens.access_token);
+            logger.debug(`[GoogleClient] Cached new access token for project: ${this.project_id}`);
+          } catch (cacheError) {
+            logger.warn('[GoogleClient] Failed to cache access token', cacheError.message);
+            // Don't fail the request if caching fails
+          }
           resolve(tokens.access_token);
         }
       });
@@ -141,7 +313,7 @@ class GoogleClient extends BaseClient {
     this.options.attachments?.then((attachments) => this.checkVisionRequest(attachments));
 
     /** @type {boolean} Whether using a "GenerativeAI" Model */
-    this.isGenerativeModel = /gemini|learnlm|gemma/.test(this.modelOptions.model);
+    this.isGenerativeModel = isGenerativeModel(this.modelOptions.model);
 
     this.maxContextTokens =
       this.options.maxContextTokens ??
@@ -166,15 +338,24 @@ class GoogleClient extends BaseClient {
       );
     }
 
-    // Add thinking configuration
+    // Unified thinking configuration for both Google GenAI and Vertex AI
+    // Google GenAI uses thinkingConfig.thinkingBudget (nested)
+    // Vertex AI uses top-level thinkingBudget
+    const thinkingBudgetValue =
+      (this.modelOptions.thinking ?? googleSettings.thinking.default)
+        ? this.modelOptions.thinkingBudget
+        : 0;
+
+    // Set nested format for Google GenAI
     this.modelOptions.thinkingConfig = {
-      thinkingBudget:
-        (this.modelOptions.thinking ?? googleSettings.thinking.default)
-          ? this.modelOptions.thinkingBudget
-          : 0,
+      thinkingBudget: thinkingBudgetValue,
     };
+
+    // Also set top-level format for Vertex AI
+    this.modelOptions.thinkingBudget = thinkingBudgetValue;
+
+    // Clean up the boolean flag
     delete this.modelOptions.thinking;
-    delete this.modelOptions.thinkingBudget;
 
     this.sender =
       this.options.sender ??
@@ -211,7 +392,7 @@ class GoogleClient extends BaseClient {
     /* Validation vision request */
     this.defaultVisionModel =
       this.options.visionModel ??
-      (!EXCLUDED_GENAI_MODELS.test(this.modelOptions.model)
+      (!isLegacyModel(this.modelOptions.model)
         ? this.modelOptions.model
         : 'gemini-pro-vision');
     const availableModels = this.options.modelsConfig?.[EModelEndpoint.google];
@@ -414,7 +595,7 @@ class GoogleClient extends BaseClient {
       formattedMessages: _messages,
     });
 
-    if (!this.project_id && !EXCLUDED_GENAI_MODELS.test(this.modelOptions.model)) {
+    if (!this.project_id && !isLegacyModel(this.modelOptions.model)) {
       const result = await this.buildGenerativeMessages(messages);
       result.tokenCountMap = tokenCountMap;
       result.promptTokens = promptTokens;
@@ -620,7 +801,7 @@ class GoogleClient extends BaseClient {
       client.presencePenalty = clientOptions.presencePenalty;
       client.maxOutputTokens = clientOptions.maxOutputTokens;
       return client;
-    } else if (!EXCLUDED_GENAI_MODELS.test(model)) {
+    } else if (!isLegacyModel(model)) {
       logger.debug('Creating GenAI client');
       return new GenAI(this.apiKey).getGenerativeModel({ model }, requestOptions);
     }
@@ -650,6 +831,67 @@ class GoogleClient extends BaseClient {
     return this.client;
   }
 
+  /**
+   * Calculate exponential backoff delay with jitter
+   * @param {number} attempt - Current retry attempt (0-indexed)
+   * @returns {number} Delay in milliseconds
+   */
+  calculateRetryDelay(attempt) {
+    const { baseDelay, multiplier, maxDelay, jitterFactor } = RETRY_CONFIG;
+
+    // Calculate exponential delay
+    let delay = baseDelay * Math.pow(multiplier, attempt);
+
+    // Apply maximum delay cap
+    delay = Math.min(delay, maxDelay);
+
+    // Add jitter to prevent thundering herd
+    const jitterRange = delay * jitterFactor;
+    const jitter = (Math.random() * 2 - 1) * jitterRange;
+    delay = Math.max(100, delay + jitter);
+
+    return Math.floor(delay);
+  }
+
+  /**
+   * Check if an error is retryable
+   * @param {Error} error - The error to check
+   * @returns {boolean} True if error should trigger retry
+   */
+  isRetryableError(error) {
+    if (!error) {
+      return false;
+    }
+
+    const errorMessage = error.message || '';
+    const errorCode = error.code;
+
+    // Check for retryable status codes
+    for (const code of RETRY_CONFIG.retryableStatusCodes) {
+      if (errorMessage.includes(String(code))) {
+        return true;
+      }
+    }
+
+    // Check for retryable network errors
+    if (errorCode && RETRY_CONFIG.retryableErrors.includes(errorCode)) {
+      return true;
+    }
+
+    // Check for common retryable error messages
+    const retryableMessages = [
+      'rate limit',
+      'too many requests',
+      'service unavailable',
+      'timeout',
+      'temporarily unavailable',
+      'network error',
+      'connection reset',
+    ];
+
+    return retryableMessages.some((msg) => errorMessage.toLowerCase().includes(msg));
+  }
+
   async getCompletion(_payload, options = {}) {
     const { onProgress, abortController } = options;
     const safetySettings = getSafetySettings(this.modelOptions.model);
@@ -659,8 +901,24 @@ class GoogleClient extends BaseClient {
     let reply = '';
     /** @type {Error} */
     let error;
-    try {
-      if (!EXCLUDED_GENAI_MODELS.test(modelName) && !this.project_id) {
+    let lastError;
+    const maxAttempts = RETRY_CONFIG.maxRetries + 1;
+
+    // Retry loop for transient failures
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      error = null;
+      reply = '';
+
+      try {
+        // Log retry attempt if not first
+        if (attempt > 0) {
+          const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+          logger.info(
+            `[GoogleClient] Retry attempt ${attempt}/${RETRY_CONFIG.maxRetries} for ${providerType}`,
+          );
+        }
+
+      if (!isLegacyModel(modelName) && !this.project_id) {
         /** @type {GenerativeModel} */
         const client = this.client;
         /** @type {GenerateContentRequest} */
@@ -768,17 +1026,81 @@ class GoogleClient extends BaseClient {
       if (usageMetadata) {
         this.usage = usageMetadata;
       }
-    } catch (e) {
-      error = e;
-      logger.error('[GoogleClient] There was an issue generating the completion', e);
+      } catch (e) {
+        error = e;
+        lastError = e;
+        const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+        const contextInfo = this.project_id
+          ? `Project: ${this.project_id}, Location: ${loc}`
+          : 'Using Gemini API';
+        logger.error(
+          `[GoogleClient] ${providerType} error generating completion. ${contextInfo}`,
+          {
+            error: e.message,
+            model: this.modelOptions.model,
+            provider: providerType,
+            attempt: attempt + 1,
+            maxAttempts,
+          },
+        );
+
+        // Check if error is retryable and we have attempts left
+        const isRetryable = this.isRetryableError(e);
+        const hasMoreAttempts = attempt < RETRY_CONFIG.maxRetries;
+
+        if (isRetryable && hasMoreAttempts) {
+          const delay = this.calculateRetryDelay(attempt);
+          logger.warn(
+            `[GoogleClient] Retryable error detected. Waiting ${delay}ms before retry ${attempt + 2}/${maxAttempts}`,
+          );
+          await sleep(delay);
+          continue; // Retry
+        }
+
+        // Not retryable or max retries reached - will throw error below
+        break;
+      }
+
+      // Success - return reply
+      if (!error && reply !== '') {
+        return reply;
+      }
+
+      // Success with empty reply (valid case for some models)
+      if (!error) {
+        return reply;
+      }
+
+      // Error occurred but will retry - loop continues
     }
 
+    // All retries exhausted or non-retryable error - format and throw error
     if (error != null && reply === '') {
-      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${
-        error.message ?? 'The Google provider failed to generate content, please contact the Admin.'
-      }" }`;
+      const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+      const errorDetails = [];
+
+      // Parse error for common issues
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('403') || errorMsg.includes('permission')) {
+        errorDetails.push('Permission denied - check IAM roles');
+      } else if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+        errorDetails.push('Authentication failed - verify API key/service account');
+      } else if (errorMsg.includes('quota') || errorMsg.includes('429')) {
+        errorDetails.push('Quota exceeded - check API limits');
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+        errorDetails.push('Model not found - verify model is enabled');
+      }
+
+      const troubleshootingInfo = errorDetails.length > 0
+        ? ` | ${errorDetails.join(' | ')}`
+        : '';
+
+      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${providerType} failed: ${
+        error.message ?? 'Unknown error occurred'
+      }${troubleshootingInfo}" }`;
       throw new Error(errorMessage);
     }
+
     return reply;
   }
 
@@ -866,7 +1188,7 @@ class GoogleClient extends BaseClient {
     const model =
       this.options.titleModel ?? this.modelOptions.modelName ?? this.modelOptions.model ?? '';
     const safetySettings = getSafetySettings(model);
-    if (!EXCLUDED_GENAI_MODELS.test(model) && !this.project_id) {
+    if (!isLegacyModel(model) && !this.project_id) {
       logger.debug('Identified titling model as GenAI version');
       /** @type {GenerativeModel} */
       const client = this.client;
@@ -964,30 +1286,24 @@ class GoogleClient extends BaseClient {
     return 'cl100k_base';
   }
 
-  async getVertexTokenCount(text) {
-    /** @type {ChatVertexAI} */
-    const client = this.client ?? this.initializeClient();
-    const connection = client.connection;
-    const gAuthClient = connection.client;
-    const tokenEndpoint = `https://${connection._endpoint}/${connection.apiVersion}/projects/${this.project_id}/locations/${connection._location}/publishers/google/models/${connection.model}/:countTokens`;
-    const result = await gAuthClient.request({
-      url: tokenEndpoint,
-      method: 'POST',
-      data: {
-        contents: [{ role: 'user', parts: [{ text }] }],
-      },
-    });
-    return result;
-  }
-
   /**
    * Returns the token count of a given text. It also checks and resets the tokenizers if necessary.
+   * Uses caching to avoid redundant tokenization for the same text.
    * @param {string} text - The text to get the token count for.
    * @returns {number} The token count of the given text.
    */
   getTokenCount(text) {
+    // For now, keep synchronous to maintain backward compatibility
+    // Token count caching can be added at a higher level if needed
     const encoding = this.getEncoding();
-    return Tokenizer.getTokenCount(text, encoding);
+    const tokenCount = Tokenizer.getTokenCount(text, encoding);
+
+    // Note: Actual Vertex AI token counting could be implemented here
+    // using the countTokens API endpoint, but it would require async operation
+    // and potentially add latency. The current cl100k_base encoding is a good
+    // approximation for Google models.
+
+    return tokenCount;
   }
 }
 

@@ -1322,6 +1322,18 @@ export enum CacheKeys {
    * Key for SAML session.
    */
   SAML_SESSION = 'SAML_SESSION',
+  /**
+   * Key for Vertex AI access tokens (JWT caching).
+   */
+  VERTEX_ACCESS_TOKENS = 'VERTEX_ACCESS_TOKENS',
+  /**
+   * Key for Vertex AI token count cache.
+   */
+  VERTEX_TOKEN_COUNTS = 'VERTEX_TOKEN_COUNTS',
+  /**
+   * Key for Vertex AI model metadata cache.
+   */
+  VERTEX_MODEL_METADATA = 'VERTEX_MODEL_METADATA',
 }
 
 /**
