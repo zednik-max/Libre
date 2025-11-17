@@ -338,15 +338,24 @@ class GoogleClient extends BaseClient {
       );
     }
 
-    // Add thinking configuration
+    // Unified thinking configuration for both Google GenAI and Vertex AI
+    // Google GenAI uses thinkingConfig.thinkingBudget (nested)
+    // Vertex AI uses top-level thinkingBudget
+    const thinkingBudgetValue =
+      (this.modelOptions.thinking ?? googleSettings.thinking.default)
+        ? this.modelOptions.thinkingBudget
+        : 0;
+
+    // Set nested format for Google GenAI
     this.modelOptions.thinkingConfig = {
-      thinkingBudget:
-        (this.modelOptions.thinking ?? googleSettings.thinking.default)
-          ? this.modelOptions.thinkingBudget
-          : 0,
+      thinkingBudget: thinkingBudgetValue,
     };
+
+    // Also set top-level format for Vertex AI
+    this.modelOptions.thinkingBudget = thinkingBudgetValue;
+
+    // Clean up the boolean flag
     delete this.modelOptions.thinking;
-    delete this.modelOptions.thinkingBudget;
 
     this.sender =
       this.options.sender ??
