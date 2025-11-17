@@ -275,6 +275,55 @@ const FILE_API_CONFIG = {
   ],
 };
 
+/**
+ * GCS (Google Cloud Storage) configuration for Vertex AI
+ * Vertex AI can reference files stored in GCS buckets using gs:// URIs
+ */
+const GCS_CONFIG = {
+  // GCS URI pattern: gs://bucket-name/path/to/file.ext
+  uriPattern: /^gs:\/\/[a-z0-9][\w.-]{1,61}[a-z0-9]\/.+$/i,
+  // Supported file types for GCS references
+  supportedMimeTypes: [
+    // Images
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    'image/gif',
+    // Documents
+    'application/pdf',
+    'text/plain',
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'text/markdown',
+    'text/csv',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Audio
+    'audio/wav',
+    'audio/mp3',
+    'audio/mpeg',
+    'audio/aiff',
+    'audio/aac',
+    'audio/ogg',
+    'audio/flac',
+    // Video
+    'video/mp4',
+    'video/mpeg',
+    'video/mov',
+    'video/avi',
+    'video/x-flv',
+    'video/mpg',
+    'video/webm',
+    'video/wmv',
+    'video/3gpp',
+  ],
+};
+
 class GoogleClient extends BaseClient {
   constructor(credentials, options = {}) {
     super('apiKey', options);
@@ -484,6 +533,51 @@ class GoogleClient extends BaseClient {
     }
   }
 
+  /**
+   * Check if a file path is a Google Cloud Storage URI
+   * @param {string} filepath - The file path to check
+   * @returns {boolean} True if the path is a GCS URI (gs://...)
+   */
+  isGcsUri(filepath) {
+    if (!filepath || typeof filepath !== 'string') {
+      return false;
+    }
+    return GCS_CONFIG.uriPattern.test(filepath);
+  }
+
+  /**
+   * Create a GCS file reference for Vertex AI
+   * Only works with Vertex AI (project_id must be set)
+   * @param {object} file - File object with filepath and type
+   * @returns {{fileUri: string, mimeType: string} | null}
+   */
+  handleGcsFileReference(file) {
+    // GCS references only work with Vertex AI
+    if (!this.project_id) {
+      logger.debug('[GoogleClient] GCS file references require Vertex AI (project_id)');
+      return null;
+    }
+
+    // Check if filepath is a GCS URI
+    if (!this.isGcsUri(file.filepath)) {
+      logger.debug(`[GoogleClient] File path is not a GCS URI: ${file.filepath}`);
+      return null;
+    }
+
+    // Validate mime type
+    if (!GCS_CONFIG.supportedMimeTypes.includes(file.type)) {
+      logger.warn(`[GoogleClient] GCS file type ${file.type} may not be supported by Vertex AI`);
+      // Don't return null - let Vertex AI handle unsupported types
+    }
+
+    logger.info(`[GoogleClient] Using GCS file reference for Vertex AI: ${file.filepath}`);
+
+    return {
+      fileUri: file.filepath, // gs://bucket/path/file
+      mimeType: file.type,
+    };
+  }
+
   /* Required Client methods */
   setOptions(options) {
     if (this.options && !this.options.replaceOptions) {
@@ -635,7 +729,9 @@ class GoogleClient extends BaseClient {
   }
 
   /**
-   * Formats messages for generative AI with File API support
+   * Formats messages for generative AI with File API and GCS support
+   * - Gemini API: Uses File API for large files (>10MB) or inline base64
+   * - Vertex AI: Supports GCS URIs (gs://...) or inline base64
    * @param {TMessage[]} messages
    * @returns
    */
@@ -644,7 +740,7 @@ class GoogleClient extends BaseClient {
     const attachments = await this.options.attachments;
     const latestMessage = { ...messages[messages.length - 1] };
 
-    // Try to upload large files to File API first
+    // Process files for File API (Gemini API) or GCS references (Vertex AI)
     const uploadedFileData = [];
     if (attachments && attachments.length > 0) {
       for (const file of attachments) {
@@ -653,7 +749,20 @@ class GoogleClient extends BaseClient {
           continue;
         }
 
-        // Try to upload file to File API if available and file is large enough
+        // Strategy 1: Check for GCS URI (Vertex AI only)
+        const gcsReference = this.handleGcsFileReference(file);
+        if (gcsReference) {
+          uploadedFileData.push({
+            fileData: gcsReference,
+            source: 'gcs',
+          });
+          logger.debug(
+            `[GoogleClient] Using GCS reference for Vertex AI: ${file.filename || file.filepath}`,
+          );
+          continue; // Skip to next file
+        }
+
+        // Strategy 2: Try File API upload (Gemini API only, for large files)
         const uploadedFile = await this.uploadFileToAPI(file);
         if (uploadedFile) {
           uploadedFileData.push({
@@ -661,14 +770,21 @@ class GoogleClient extends BaseClient {
               fileUri: uploadedFile.uri,
               mimeType: uploadedFile.mimeType,
             },
+            source: 'file-api',
             uploaded: true,
           });
           logger.debug(`[GoogleClient] Using File API for: ${file.filename || file.filepath}`);
+          continue; // Skip to next file
         }
+
+        // Strategy 3: Fall back to inline base64 (handled by addImageURLs below)
+        logger.debug(
+          `[GoogleClient] Will use inline base64 for: ${file.filename || file.filepath}`,
+        );
       }
     }
 
-    // Add inline images for files not uploaded to File API
+    // Add inline images for files not handled by File API or GCS
     const files = await this.addImageURLs(latestMessage, attachments, VisionModes.generative);
     this.options.attachments = files;
     messages[messages.length - 1] = latestMessage;
@@ -678,7 +794,7 @@ class GoogleClient extends BaseClient {
       const parts = [];
       parts.push({ text: _message.text });
 
-      // Add File API uploaded files (only for the latest message)
+      // Add File API/GCS uploaded files (only for the latest message)
       if (_message === latestMessage && uploadedFileData.length > 0) {
         for (const fileData of uploadedFileData) {
           parts.push(fileData);
@@ -723,8 +839,16 @@ class GoogleClient extends BaseClient {
 
   /**
    * Builds the augmented prompt for attachments
-   * Note: Large files (>10MB) automatically use File API when available (Google GenAI only)
-   * Vertex AI users must upload files to Google Cloud Storage separately
+   *
+   * File Handling Strategies:
+   * - Gemini API: Large files (>10MB) use File API, small files use inline base64
+   * - Vertex AI: Supports GCS URIs (gs://bucket/path/file) or inline base64
+   *
+   * To use GCS with Vertex AI:
+   * 1. Upload file to your GCS bucket
+   * 2. Pass filepath as "gs://your-bucket/path/to/file.pdf"
+   * 3. Ensure Vertex AI service account has storage.objects.get permission
+   *
    * @param {TMessage[]} messages
    */
   async buildAugmentedPrompt(messages = []) {
