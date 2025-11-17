@@ -51,6 +51,21 @@ const namespaces = {
     CacheKeys.OPENID_EXCHANGED_TOKENS,
     Time.TEN_MINUTES,
   ),
+  /** Vertex AI access tokens (JWT) - cache for 50 minutes (tokens expire in 1 hour) */
+  [CacheKeys.VERTEX_ACCESS_TOKENS]: standardCache(
+    CacheKeys.VERTEX_ACCESS_TOKENS,
+    Time.ONE_HOUR - Time.TEN_MINUTES,
+  ),
+  /** Vertex AI token counts - cache for 24 hours (deterministic for same text) */
+  [CacheKeys.VERTEX_TOKEN_COUNTS]: standardCache(
+    CacheKeys.VERTEX_TOKEN_COUNTS,
+    Time.ONE_DAY,
+  ),
+  /** Vertex AI model metadata - cache for 30 minutes */
+  [CacheKeys.VERTEX_MODEL_METADATA]: standardCache(
+    CacheKeys.VERTEX_MODEL_METADATA,
+    Time.THIRTY_MINUTES,
+  ),
 };
 
 /**

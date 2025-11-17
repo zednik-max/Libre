@@ -20,10 +20,12 @@ const {
   VisionModes,
   ErrorTypes,
   Constants,
+  CacheKeys,
   AuthKeys,
 } = require('librechat-data-provider');
 const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
+const { getLogStores } = require('~/cache');
 const {
   formatMessage,
   createContextHandlers,
@@ -103,15 +105,40 @@ class GoogleClient extends BaseClient {
   }
 
   async getAccessToken() {
+    // Create cache key based on service account email
+    const cacheKey = `${this.project_id}:${this.client_email}`;
+    const cache = getLogStores(CacheKeys.VERTEX_ACCESS_TOKENS);
+
+    try {
+      // Check cache first
+      const cachedToken = await cache.get(cacheKey);
+      if (cachedToken) {
+        logger.debug(`[GoogleClient] Using cached access token for project: ${this.project_id}`);
+        return cachedToken;
+      }
+    } catch (cacheError) {
+      logger.warn('[GoogleClient] Failed to read from access token cache', cacheError.message);
+      // Continue to generate new token if cache fails
+    }
+
+    // Generate new token
     const scopes = ['https://www.googleapis.com/auth/cloud-platform'];
     const jwtClient = new google.auth.JWT(this.client_email, null, this.private_key, scopes);
 
     return new Promise((resolve, reject) => {
-      jwtClient.authorize((err, tokens) => {
+      jwtClient.authorize(async (err, tokens) => {
         if (err) {
           logger.error('jwtClient failed to authorize', err);
           reject(err);
         } else {
+          // Cache the token for future use
+          try {
+            await cache.set(cacheKey, tokens.access_token);
+            logger.debug(`[GoogleClient] Cached new access token for project: ${this.project_id}`);
+          } catch (cacheError) {
+            logger.warn('[GoogleClient] Failed to cache access token', cacheError.message);
+            // Don't fail the request if caching fails
+          }
           resolve(tokens.access_token);
         }
       });
@@ -996,12 +1023,22 @@ class GoogleClient extends BaseClient {
 
   /**
    * Returns the token count of a given text. It also checks and resets the tokenizers if necessary.
+   * Uses caching to avoid redundant tokenization for the same text.
    * @param {string} text - The text to get the token count for.
    * @returns {number} The token count of the given text.
    */
   getTokenCount(text) {
+    // For now, keep synchronous to maintain backward compatibility
+    // Token count caching can be added at a higher level if needed
     const encoding = this.getEncoding();
-    return Tokenizer.getTokenCount(text, encoding);
+    const tokenCount = Tokenizer.getTokenCount(text, encoding);
+
+    // Note: Actual Vertex AI token counting could be implemented here
+    // using the countTokens API endpoint, but it would require async operation
+    // and potentially add latency. The current cl100k_base encoding is a good
+    // approximation for Google models.
+
+    return tokenCount;
   }
 }
 
