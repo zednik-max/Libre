@@ -142,3 +142,4 @@ helm/**/.values.yaml
 #User config
 gcp-sa-key.json
 Libre*.ps1
+/docs/**
