@@ -140,6 +140,9 @@ helm/**/.values.yaml
 *.local.md
 
 #User config
+
+# User Config
 gcp-sa-key.json
 Libre*.ps1
-/docs/**
+
+

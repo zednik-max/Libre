@@ -1,0 +1,1 @@
+docker volume rm librechat_logs
