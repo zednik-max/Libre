@@ -30,6 +30,7 @@ const {
 } = require('librechat-data-provider');
 const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
+const { getVertexAIModelName, getMultiplier } = require('~/models/tx');
 const { getLogStores } = require('~/cache');
 const {
   formatMessage,
@@ -1586,16 +1587,220 @@ class GoogleClient extends BaseClient {
    * @returns {Promise<void>}
    */
   async recordTokenUsage({ promptTokens, completionTokens, model, context = 'message' }) {
+    const modelName = model ?? this.modelOptions.model;
+    // Transform model name to use Vertex AI pricing if applicable
+    const pricingModel = getVertexAIModelName(modelName, !!this.project_id);
+
     await spendTokens(
       {
         context,
         user: this.user ?? this.options.req?.user?.id,
         conversationId: this.conversationId,
-        model: model ?? this.modelOptions.model,
+        model: pricingModel,
         endpointTokenConfig: this.options.endpointTokenConfig,
       },
       { promptTokens, completionTokens },
     );
+
+    // Track quota usage for Vertex AI
+    if (this.project_id) {
+      await this.trackQuotaUsage({
+        promptTokens,
+        completionTokens,
+      });
+    }
+  }
+
+  /**
+   * Track Vertex AI quota usage (RPM, TPM, RPD, TPD)
+   * @param {Object} params - Usage parameters
+   * @param {number} params.promptTokens - Input tokens
+   * @param {number} params.completionTokens - Output tokens
+   * @returns {Promise<void>}
+   */
+  async trackQuotaUsage({ promptTokens = 0, completionTokens = 0 }) {
+    if (!this.project_id) {
+      return; // Only track for Vertex AI
+    }
+
+    const totalTokens = promptTokens + completionTokens;
+    const cacheKey = `${this.project_id}:${this.modelOptions.model}`;
+
+    try {
+      // Track requests per minute (RPM)
+      const rpmCache = getLogStores(CacheKeys.VERTEX_QUOTA_RPM);
+      const currentRPM = (await rpmCache.get(cacheKey)) ?? 0;
+      await rpmCache.set(cacheKey, currentRPM + 1);
+
+      // Track tokens per minute (TPM)
+      const tpmCache = getLogStores(CacheKeys.VERTEX_QUOTA_TPM);
+      const currentTPM = (await tpmCache.get(cacheKey)) ?? 0;
+      await tpmCache.set(cacheKey, currentTPM + totalTokens);
+
+      // Track requests per day (RPD)
+      const rpdCache = getLogStores(CacheKeys.VERTEX_QUOTA_RPD);
+      const rpdKey = `${cacheKey}:${new Date().toISOString().split('T')[0]}`;
+      const currentRPD = (await rpdCache.get(rpdKey)) ?? 0;
+      await rpdCache.set(rpdKey, currentRPD + 1);
+
+      // Track tokens per day (TPD)
+      const tpdCache = getLogStores(CacheKeys.VERTEX_QUOTA_TPD);
+      const tpdKey = `${cacheKey}:${new Date().toISOString().split('T')[0]}`;
+      const currentTPD = (await tpdCache.get(tpdKey)) ?? 0;
+      await tpdCache.set(tpdKey, currentTPD + totalTokens);
+
+      // Log quota usage
+      logger.debug('[GoogleClient] Vertex AI quota tracking', {
+        project: this.project_id,
+        model: this.modelOptions.model,
+        rpm: currentRPM + 1,
+        tpm: currentTPM + totalTokens,
+        rpd: currentRPD + 1,
+        tpd: currentTPD + totalTokens,
+      });
+    } catch (error) {
+      logger.warn('[GoogleClient] Failed to track Vertex AI quota usage', error.message);
+    }
+  }
+
+  /**
+   * Get current quota usage for Vertex AI
+   * @returns {Promise<Object>} Current quota usage
+   */
+  async getQuotaUsage() {
+    if (!this.project_id) {
+      return null;
+    }
+
+    const cacheKey = `${this.project_id}:${this.modelOptions.model}`;
+
+    try {
+      const rpmCache = getLogStores(CacheKeys.VERTEX_QUOTA_RPM);
+      const tpmCache = getLogStores(CacheKeys.VERTEX_QUOTA_TPM);
+      const rpdCache = getLogStores(CacheKeys.VERTEX_QUOTA_RPD);
+      const tpdCache = getLogStores(CacheKeys.VERTEX_QUOTA_TPD);
+
+      const rpdKey = `${cacheKey}:${new Date().toISOString().split('T')[0]}`;
+      const tpdKey = `${cacheKey}:${new Date().toISOString().split('T')[0]}`;
+
+      const [rpm, tpm, rpd, tpd] = await Promise.all([
+        rpmCache.get(cacheKey),
+        tpmCache.get(cacheKey),
+        rpdCache.get(rpdKey),
+        tpdCache.get(tpdKey),
+      ]);
+
+      return {
+        requestsPerMinute: rpm ?? 0,
+        tokensPerMinute: tpm ?? 0,
+        requestsPerDay: rpd ?? 0,
+        tokensPerDay: tpd ?? 0,
+        project: this.project_id,
+        model: this.modelOptions.model,
+      };
+    } catch (error) {
+      logger.warn('[GoogleClient] Failed to get Vertex AI quota usage', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Check if approaching quota limits and log warnings
+   * Default Vertex AI limits (can be overridden via options):
+   * - RPM: 300 requests/minute for Gemini 1.5 Pro, 2000 for Flash
+   * - TPM: 4M tokens/minute for Gemini 1.5 Pro, 4M for Flash
+   * @param {Object} limits - Quota limits
+   * @param {number} [limits.rpm=1000] - Requests per minute limit
+   * @param {number} [limits.tpm=4000000] - Tokens per minute limit
+   * @param {number} [limits.threshold=0.8] - Warning threshold (80% by default)
+   * @returns {Promise<Object>} Quota status
+   */
+  async checkQuotaLimits({ rpm = 1000, tpm = 4000000, threshold = 0.8 } = {}) {
+    const usage = await this.getQuotaUsage();
+    if (!usage) {
+      return null;
+    }
+
+    const warnings = [];
+    const status = {
+      rpm: {
+        current: usage.requestsPerMinute,
+        limit: rpm,
+        percentage: (usage.requestsPerMinute / rpm) * 100,
+        approaching: usage.requestsPerMinute > rpm * threshold,
+      },
+      tpm: {
+        current: usage.tokensPerMinute,
+        limit: tpm,
+        percentage: (usage.tokensPerMinute / tpm) * 100,
+        approaching: usage.tokensPerMinute > tpm * threshold,
+      },
+    };
+
+    if (status.rpm.approaching) {
+      const msg = `[GoogleClient] Vertex AI RPM quota at ${status.rpm.percentage.toFixed(
+        1,
+      )}% (${usage.requestsPerMinute}/${rpm})`;
+      logger.warn(msg);
+      warnings.push(msg);
+    }
+
+    if (status.tpm.approaching) {
+      const msg = `[GoogleClient] Vertex AI TPM quota at ${status.tpm.percentage.toFixed(
+        1,
+      )}% (${usage.tokensPerMinute}/${tpm})`;
+      logger.warn(msg);
+      warnings.push(msg);
+    }
+
+    return { ...status, warnings };
+  }
+
+  /**
+   * Estimate cost for Vertex AI request
+   * @param {Object} params - Parameters for cost estimation
+   * @param {number} params.promptTokens - Input tokens
+   * @param {number} params.completionTokens - Output tokens
+   * @param {string} [params.model] - Model name (defaults to current model)
+   * @returns {Object} Cost estimation in USD
+   */
+  estimateCost({ promptTokens, completionTokens, model }) {
+    const modelName = model ?? this.modelOptions.model;
+    const pricingModel = getVertexAIModelName(modelName, !!this.project_id);
+
+    // Get pricing multipliers (cost per 1M tokens)
+    const promptMultiplier = getMultiplier({
+      model: pricingModel,
+      tokenType: 'prompt',
+      endpoint: 'google',
+    });
+
+    const completionMultiplier = getMultiplier({
+      model: pricingModel,
+      tokenType: 'completion',
+      endpoint: 'google',
+    });
+
+    // Calculate costs (multipliers are per 1M tokens)
+    const promptCost = (promptTokens / 1000000) * promptMultiplier;
+    const completionCost = (completionTokens / 1000000) * completionMultiplier;
+    const totalCost = promptCost + completionCost;
+
+    const result = {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+      promptCost,
+      completionCost,
+      totalCost,
+      currency: 'USD',
+      model: pricingModel,
+      provider: this.project_id ? 'Vertex AI' : 'Gemini API',
+    };
+
+    logger.debug('[GoogleClient] Cost estimation', result);
+
+    return result;
   }
 
   /**

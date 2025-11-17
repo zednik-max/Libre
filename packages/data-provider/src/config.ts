@@ -1334,6 +1334,22 @@ export enum CacheKeys {
    * Key for Vertex AI model metadata cache.
    */
   VERTEX_MODEL_METADATA = 'VERTEX_MODEL_METADATA',
+  /**
+   * Key for Vertex AI quota monitoring (requests per minute).
+   */
+  VERTEX_QUOTA_RPM = 'VERTEX_QUOTA_RPM',
+  /**
+   * Key for Vertex AI quota monitoring (tokens per minute).
+   */
+  VERTEX_QUOTA_TPM = 'VERTEX_QUOTA_TPM',
+  /**
+   * Key for Vertex AI quota monitoring (requests per day).
+   */
+  VERTEX_QUOTA_RPD = 'VERTEX_QUOTA_RPD',
+  /**
+   * Key for Vertex AI quota monitoring (tokens per day).
+   */
+  VERTEX_QUOTA_TPD = 'VERTEX_QUOTA_TPD',
 }
 
 /**
