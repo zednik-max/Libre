@@ -37,6 +37,7 @@ endpoints:
         default:
           - 'deepseek-r1'
           - 'deepseek-v3'
+          - 'deepseek-ocr'
           - 'minimax-m2'
           - 'qwen3-235b'
           - 'llama-3.3-70b'
