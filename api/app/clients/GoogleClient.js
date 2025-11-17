@@ -909,16 +909,66 @@ class GoogleClient extends BaseClient {
 
     const errorMessage = error.message || '';
     const errorCode = error.code;
+    const errorStatus = error.status;
 
-    // Check for retryable status codes
+    // Check for Vertex AI/Google API structured error responses
+    // Example: error.message might contain JSON with nested error.code
+    try {
+      // Try to parse JSON error responses
+      const jsonMatch = errorMessage.match(/\[?\{[\s\S]*"error"[\s\S]*\}?\]?/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const nestedError = parsed.error || parsed[0]?.error;
+        if (nestedError) {
+          // Check nested error code
+          if (nestedError.code && RETRY_CONFIG.retryableStatusCodes.includes(nestedError.code)) {
+            logger.debug(
+              `[GoogleClient] Detected retryable error code ${nestedError.code} in nested error`,
+            );
+            return true;
+          }
+          // Check nested error status (e.g., "RESOURCE_EXHAUSTED")
+          if (
+            nestedError.status &&
+            ['RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'DEADLINE_EXCEEDED'].includes(nestedError.status)
+          ) {
+            logger.debug(
+              `[GoogleClient] Detected retryable status '${nestedError.status}' in nested error`,
+            );
+            return true;
+          }
+        }
+      }
+    } catch (parseError) {
+      // Not JSON or failed to parse - continue with other checks
+    }
+
+    // Check for retryable status codes in error message string
     for (const code of RETRY_CONFIG.retryableStatusCodes) {
       if (errorMessage.includes(String(code))) {
+        logger.debug(`[GoogleClient] Detected retryable error code ${code} in message string`);
         return true;
       }
     }
 
+    // Check error.code property
+    if (errorCode && RETRY_CONFIG.retryableStatusCodes.includes(errorCode)) {
+      logger.debug(`[GoogleClient] Detected retryable error code ${errorCode} in error.code`);
+      return true;
+    }
+
+    // Check error.status property
+    if (
+      errorStatus &&
+      ['RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'DEADLINE_EXCEEDED'].includes(errorStatus)
+    ) {
+      logger.debug(`[GoogleClient] Detected retryable status '${errorStatus}' in error.status`);
+      return true;
+    }
+
     // Check for retryable network errors
     if (errorCode && RETRY_CONFIG.retryableErrors.includes(errorCode)) {
+      logger.debug(`[GoogleClient] Detected retryable network error code: ${errorCode}`);
       return true;
     }
 
@@ -931,9 +981,19 @@ class GoogleClient extends BaseClient {
       'temporarily unavailable',
       'network error',
       'connection reset',
+      'resource exhausted', // Added for Vertex AI 429 errors
+      'deadline exceeded',
+      'unavailable',
     ];
 
-    return retryableMessages.some((msg) => errorMessage.toLowerCase().includes(msg));
+    const isRetryable = retryableMessages.some((msg) =>
+      errorMessage.toLowerCase().includes(msg),
+    );
+    if (isRetryable) {
+      logger.debug(`[GoogleClient] Detected retryable error message pattern in error text`);
+    }
+
+    return isRetryable;
   }
 
   async getCompletion(_payload, options = {}) {
