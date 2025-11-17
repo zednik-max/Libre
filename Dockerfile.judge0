@@ -1,29 +1,46 @@
 # Custom LibreChat image with Judge0 Code Interpreter integration
 FROM ghcr.io/danny-avila/librechat-dev:latest
 
-# Copy Judge0 integration files
+WORKDIR /app
+
+# Copy Judge0 integration files (overwrite existing)
 COPY api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/languages.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/judge0.js /app/api/server/services/Tools/
 COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
-
-# Copy updated backend controller (CODE_API_KEY fix)
 COPY api/server/controllers/tools.js /app/api/server/controllers/
 
-# Copy updated frontend files
+# Copy updated frontend files (overwrite existing)
 COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
 COPY client/src/hooks/Plugins/useAuthCodeTool.ts /app/client/src/hooks/Plugins/
 COPY client/src/hooks/Plugins/useToolToggle.ts /app/client/src/hooks/Plugins/
 
-# Install dev dependencies needed for building
-WORKDIR /app
-RUN npm install --include=dev
+# Ensure dev dependencies are installed
+RUN echo "=== Installing dependencies ===" && \
+    npm install --include=dev --legacy-peer-deps
 
-# Rebuild packages and frontend
-RUN npm run build:packages && npm run frontend
+# Build packages and frontend with detailed logging
+RUN echo "=== Building data-provider ===" && \
+    npm run build:data-provider && \
+    echo "=== Building data-schemas ===" && \
+    npm run build:data-schemas && \
+    echo "=== Building api package ===" && \
+    npm run build:api && \
+    echo "=== Building client package ===" && \
+    npm run build:client-package && \
+    echo "=== Building frontend ===" && \
+    cd client && \
+    npm run build && \
+    echo "=== Frontend build complete ===" && \
+    ls -la /app/client/dist && \
+    ls -la /app/client/dist/assets && \
+    echo "=== Verifying build files ===" && \
+    test -f /app/client/dist/index.html && \
+    test -d /app/client/dist/assets && \
+    echo "=== Build verification successful! ===" && \
+    cd /app
 
-# Set back to production mode
+# Set to production mode
 ENV NODE_ENV=production
 
-WORKDIR /app
 CMD ["npm", "run", "backend"]
