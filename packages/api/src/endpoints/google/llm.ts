@@ -4,6 +4,51 @@ import type { GoogleClientOptions, VertexAIClientOptions } from '@librechat/agen
 import type { GoogleAIToolType } from '@langchain/google-common';
 import type * as t from '~/types';
 import { isEnabled } from '~/utils';
+import { logger } from '@librechat/data-schemas';
+
+/**
+ * Supported Vertex AI locations
+ * See: https://cloud.google.com/vertex-ai/docs/general/locations
+ */
+const SUPPORTED_LOCATIONS = [
+  'us-central1',
+  'us-east1',
+  'us-east4',
+  'us-west1',
+  'us-west2',
+  'us-west4',
+  'europe-west1',
+  'europe-west2',
+  'europe-west3',
+  'europe-west4',
+  'europe-north1',
+  'asia-east1',
+  'asia-northeast1',
+  'asia-northeast3',
+  'asia-southeast1',
+  'asia-south1',
+  'australia-southeast1',
+  'northamerica-northeast1',
+  'southamerica-east1',
+  'global',
+];
+
+/**
+ * Get validated location from environment or default
+ * @returns {string} Valid Vertex AI location
+ */
+function getValidatedLocation(): string {
+  const envLoc = process.env.GOOGLE_LOC;
+  if (envLoc && SUPPORTED_LOCATIONS.includes(envLoc)) {
+    return envLoc;
+  }
+  if (envLoc) {
+    logger.warn(
+      `[VertexAI] Invalid GOOGLE_LOC '${envLoc}'. Supported locations: ${SUPPORTED_LOCATIONS.join(', ')}. Defaulting to 'us-central1'.`,
+    );
+  }
+  return 'us-central1';
+}
 
 /** Known Google/Vertex AI parameters that map directly to the client config */
 export const knownGoogleParams = new Set([
@@ -181,7 +226,7 @@ export function getGoogleConfig(
       credentials: { ...serviceKey },
       projectId: project_id,
     };
-    (llmConfig as VertexAIClientOptions).location = process.env.GOOGLE_LOC || 'us-central1';
+    (llmConfig as VertexAIClientOptions).location = getValidatedLocation();
   } else if (apiKey && provider === Providers.GOOGLE) {
     llmConfig.apiKey = apiKey;
   } else {

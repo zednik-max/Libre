@@ -34,8 +34,51 @@ const {
 } = require('./prompts');
 const BaseClient = require('./BaseClient');
 
-const loc = process.env.GOOGLE_LOC || 'us-central1';
-const publisher = 'google';
+/**
+ * Supported Vertex AI locations
+ * See: https://cloud.google.com/vertex-ai/docs/general/locations
+ */
+const SUPPORTED_LOCATIONS = [
+  'us-central1',
+  'us-east1',
+  'us-east4',
+  'us-west1',
+  'us-west2',
+  'us-west4',
+  'europe-west1',
+  'europe-west2',
+  'europe-west3',
+  'europe-west4',
+  'europe-north1',
+  'asia-east1',
+  'asia-northeast1',
+  'asia-northeast3',
+  'asia-southeast1',
+  'asia-south1',
+  'australia-southeast1',
+  'northamerica-northeast1',
+  'southamerica-east1',
+  'global',
+];
+
+/**
+ * Get validated location from environment or default
+ * @returns {string} Valid Vertex AI location
+ */
+function getVertexLocation() {
+  const envLoc = process.env.GOOGLE_LOC;
+  if (envLoc && SUPPORTED_LOCATIONS.includes(envLoc)) {
+    return envLoc;
+  }
+  if (envLoc) {
+    logger.warn(
+      `[GoogleClient] Invalid GOOGLE_LOC '${envLoc}'. Supported locations: ${SUPPORTED_LOCATIONS.join(', ')}. Defaulting to 'us-central1'.`,
+    );
+  }
+  return 'us-central1';
+}
+
+const loc = getVertexLocation();
 const endpointPrefix =
   loc === 'global' ? 'aiplatform.googleapis.com' : `${loc}-aiplatform.googleapis.com`;
 
@@ -232,7 +275,8 @@ class GoogleClient extends BaseClient {
 
   /* Google specific methods */
   constructUrl() {
-    return `https://${endpointPrefix}/v1/projects/${this.project_id}/locations/${loc}/publishers/${publisher}/models/${this.modelOptions.model}:serverStreamingPredict`;
+    const modelPublisher = getModelPublisher(this.modelOptions.model);
+    return `https://${endpointPrefix}/v1/projects/${this.project_id}/locations/${loc}/publishers/${modelPublisher}/models/${this.modelOptions.model}:serverStreamingPredict`;
   }
 
   async getClient() {
