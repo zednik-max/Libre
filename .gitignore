@@ -138,6 +138,10 @@ helm/**/.values.yaml
 /.tabnine/
 /.codeium
 *.local.md
-gcp-sa-key.json
 
+
+
+# User Config
+gcp-sa-key.json
+Libre*.ps1
 

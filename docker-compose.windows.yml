@@ -5,7 +5,10 @@
 services:
   api:
     container_name: LibreChat
-    image: ghcr.io/danny-avila/librechat-dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.judge0
+    image: librechat-judge0:latest
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -21,10 +24,12 @@ services:
       - MEILI_HOST=http://meilisearch:7700
       - RAG_PORT=8000
       - RAG_API_URL=http://rag_api:8000
+    env_file:
+      - .env
     volumes:
       - ./librechat.yaml:/app/librechat.yaml
-      - ./images:/app/client/public/images
-      - ./.env:/app/.env
+      - ./images:/app/client/public/images      
+      - ./client/public/assets:/app/client/dist/assets
 
   mongodb:
     container_name: chat-mongodb

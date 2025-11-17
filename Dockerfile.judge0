@@ -1,0 +1,29 @@
+# Custom LibreChat image with Judge0 Code Interpreter integration
+FROM ghcr.io/danny-avila/librechat-dev:latest
+
+# Copy Judge0 integration files
+COPY api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
+COPY api/server/services/Tools/languages.js /app/api/server/services/Tools/
+COPY api/server/services/Tools/judge0.js /app/api/server/services/Tools/
+COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
+
+# Copy updated backend controller (CODE_API_KEY fix)
+COPY api/server/controllers/tools.js /app/api/server/controllers/
+
+# Copy updated frontend files
+COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
+COPY client/src/hooks/Plugins/useAuthCodeTool.ts /app/client/src/hooks/Plugins/
+COPY client/src/hooks/Plugins/useToolToggle.ts /app/client/src/hooks/Plugins/
+
+# Install dev dependencies needed for building
+WORKDIR /app
+RUN npm install --include=dev
+
+# Rebuild packages and frontend
+RUN npm run build:packages && npm run frontend
+
+# Set back to production mode
+ENV NODE_ENV=production
+
+WORKDIR /app
+CMD ["npm", "run", "backend"]

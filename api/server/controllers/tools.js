@@ -18,7 +18,7 @@ const { getRoleByName } = require('~/models/Role');
 const { getMessage } = require('~/models/Message');
 
 const fieldsMap = {
-  [Tools.execute_code]: [EnvVar.CODE_API_KEY],
+  [Tools.execute_code]: ['CODE_API_KEY'], // Use string directly instead of EnvVar constant
 };
 
 const toolAccessPermType = {

@@ -1,0 +1,121 @@
+# LibreChat Configuration for GCP Vertex AI Model Garden + Judge0 Code Interpreter
+# Judge0 integration is built-in to Code Interpreter (no MCP needed)
+
+version: 1.3.1
+
+cache: true
+
+interface:
+  privacyPolicy:
+    externalUrl: 'https://librechat.ai/privacy-policy'
+    openNewTab: true
+  termsOfService:
+    externalUrl: 'https://librechat.ai/tos'
+    openNewTab: true
+  endpointsMenu: true
+  modelSelect: true
+  parameters: true
+  sidePanel: true
+  presets: true
+  prompts: true
+  bookmarks: true
+  multiConvo: true
+  agents: true
+  # Agent Marketplace - enables internal agent sharing
+  peoplePicker:
+    users: true      # Allow selecting specific users when sharing agents
+    groups: true     # Allow selecting groups
+    roles: true      # Allow selecting roles (e.g., all admins)
+  marketplace:
+    use: true        # Enable the agent marketplace UI
+
+registration:
+  socialLogins: ['github', 'google', 'discord', 'openid']
+
+endpoints:
+  custom:
+    # GCP Vertex AI Models via Custom OAuth2 Proxy
+    - name: 'Vertex-AI'
+      apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
+      baseURL: 'http://vertex-proxy:4000'
+      iconURL: '/assets/vertex-ai.svg'  
+
+      models:
+        default:
+          - 'deepseek-r1'
+          - 'deepseek-v3'
+          - 'minimax-m2'
+          - 'qwen3-235b'
+          - 'llama-3.3-70b'
+          - 'qwen3-thinking'
+          - 'llama-4-maverick'
+          - 'llama-4-scout'
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'deepseek-v3'
+      modelDisplayLabel: 'GCP Vertex AI'
+
+      # Don't drop parameters - let the proxy handle them
+      dropParams: []
+
+    # Mistral AI
+    - name: 'Mistral'
+      apiKey: '${MISTRAL_API_KEY}'
+      baseURL: 'https://api.mistral.ai/v1'
+
+      models:
+        default:
+          - 'mistral-large-latest'
+          - 'mistral-medium-latest'
+          - 'mistral-small-latest'
+          - 'codestral-latest'
+        fetch: true
+
+      titleConvo: true
+      titleModel: 'mistral-small-latest'
+      modelDisplayLabel: 'Mistral'
+
+      # Mistral requires dropping these parameters to avoid 422 errors
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']
+
+    # Perplexity AI
+    - name: 'Perplexity'
+      apiKey: '${PERPLEXITY_API_KEY}'
+      baseURL: 'https://api.perplexity.ai'
+
+      models:
+        default:
+          - 'sonar'                    # Lightweight search (127k context)
+          - 'sonar-pro'                # Advanced search (200k context)
+          - 'sonar-reasoning'          # Real-time reasoning with search (127k)
+          - 'sonar-reasoning-pro'      # DeepSeek-R1 powered reasoning (127k)
+          - 'sonar-deep-research'      # Long-form research reports
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'sonar'
+      modelDisplayLabel: 'Perplexity'
+
+# Web Search Configuration
+# Enables web search capabilities for AI agents
+webSearch:
+  # Search Provider: Serper (Google Search API)
+  serperApiKey: '${SERPER_API_KEY}'
+  searchProvider: 'serper'
+
+  # Content Scraper: Also using Serper (supports both search and scraping)
+  scraperProvider: 'serper'
+  scraperTimeout: 10000  # 10 seconds timeout
+
+  # Reranker: Jina AI for result ranking and relevance
+  jinaApiKey: '${JINA_API_KEY}'
+  # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
+  rerankerType: 'jina'
+
+  # Safe search level: 0 (off), 1 (moderate), 2 (strict)
+  safeSearch: 1
+
+# NOTE: Judge0 Code Execution is integrated directly into the Code Interpreter
+# No MCP configuration needed! Just click the Code Interpreter button and enter your RapidAPI key.
+# Get FREE RapidAPI key: https://rapidapi.com/judge0-official/api/judge0-ce

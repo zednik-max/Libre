@@ -250,6 +250,7 @@ const loadTools = async ({
   for (const tool of tools) {
     if (tool === Tools.execute_code) {
       // JUDGE0 INTEGRATION: Replaced LibreChat Code Interpreter with Judge0
+      logger.info(`[Judge0] Loading Code Interpreter for user ${user}`);
       requestedTools[tool] = async () => {
         const authValues = await loadAuthValues({
           userId: user,
@@ -263,6 +264,7 @@ const loadTools = async ({
           apiKey: codeApiKey,
         });
 
+        logger.info(`[Judge0] Code Interpreter created for user ${user}`);
         return Judge0Tool;
       };
       continue;
