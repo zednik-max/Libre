@@ -42,6 +42,17 @@ const endpointPrefix =
 const settings = endpointSettings[EModelEndpoint.google];
 const EXCLUDED_GENAI_MODELS = /gemini-(?:1\.0|1-0|pro)/;
 
+/** Retry configuration for transient failures */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 30000, // 30 seconds
+  multiplier: 2,
+  jitterFactor: 0.2,
+  retryableStatusCodes: [429, 500, 502, 503, 504],
+  retryableErrors: ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'],
+};
+
 class GoogleClient extends BaseClient {
   constructor(credentials, options = {}) {
     super('apiKey', options);
@@ -677,6 +688,67 @@ class GoogleClient extends BaseClient {
     return this.client;
   }
 
+  /**
+   * Calculate exponential backoff delay with jitter
+   * @param {number} attempt - Current retry attempt (0-indexed)
+   * @returns {number} Delay in milliseconds
+   */
+  calculateRetryDelay(attempt) {
+    const { baseDelay, multiplier, maxDelay, jitterFactor } = RETRY_CONFIG;
+
+    // Calculate exponential delay
+    let delay = baseDelay * Math.pow(multiplier, attempt);
+
+    // Apply maximum delay cap
+    delay = Math.min(delay, maxDelay);
+
+    // Add jitter to prevent thundering herd
+    const jitterRange = delay * jitterFactor;
+    const jitter = (Math.random() * 2 - 1) * jitterRange;
+    delay = Math.max(100, delay + jitter);
+
+    return Math.floor(delay);
+  }
+
+  /**
+   * Check if an error is retryable
+   * @param {Error} error - The error to check
+   * @returns {boolean} True if error should trigger retry
+   */
+  isRetryableError(error) {
+    if (!error) {
+      return false;
+    }
+
+    const errorMessage = error.message || '';
+    const errorCode = error.code;
+
+    // Check for retryable status codes
+    for (const code of RETRY_CONFIG.retryableStatusCodes) {
+      if (errorMessage.includes(String(code))) {
+        return true;
+      }
+    }
+
+    // Check for retryable network errors
+    if (errorCode && RETRY_CONFIG.retryableErrors.includes(errorCode)) {
+      return true;
+    }
+
+    // Check for common retryable error messages
+    const retryableMessages = [
+      'rate limit',
+      'too many requests',
+      'service unavailable',
+      'timeout',
+      'temporarily unavailable',
+      'network error',
+      'connection reset',
+    ];
+
+    return retryableMessages.some((msg) => errorMessage.toLowerCase().includes(msg));
+  }
+
   async getCompletion(_payload, options = {}) {
     const { onProgress, abortController } = options;
     const safetySettings = getSafetySettings(this.modelOptions.model);
@@ -686,7 +758,23 @@ class GoogleClient extends BaseClient {
     let reply = '';
     /** @type {Error} */
     let error;
-    try {
+    let lastError;
+    const maxAttempts = RETRY_CONFIG.maxRetries + 1;
+
+    // Retry loop for transient failures
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      error = null;
+      reply = '';
+
+      try {
+        // Log retry attempt if not first
+        if (attempt > 0) {
+          const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+          logger.info(
+            `[GoogleClient] Retry attempt ${attempt}/${RETRY_CONFIG.maxRetries} for ${providerType}`,
+          );
+        }
+
       if (!EXCLUDED_GENAI_MODELS.test(modelName) && !this.project_id) {
         /** @type {GenerativeModel} */
         const client = this.client;
@@ -795,22 +883,55 @@ class GoogleClient extends BaseClient {
       if (usageMetadata) {
         this.usage = usageMetadata;
       }
-    } catch (e) {
-      error = e;
-      const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
-      const contextInfo = this.project_id
-        ? `Project: ${this.project_id}, Location: ${loc}`
-        : 'Using Gemini API';
-      logger.error(
-        `[GoogleClient] ${providerType} error generating completion. ${contextInfo}`,
-        {
-          error: e.message,
-          model: this.modelOptions.model,
-          provider: providerType,
-        },
-      );
+      } catch (e) {
+        error = e;
+        lastError = e;
+        const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
+        const contextInfo = this.project_id
+          ? `Project: ${this.project_id}, Location: ${loc}`
+          : 'Using Gemini API';
+        logger.error(
+          `[GoogleClient] ${providerType} error generating completion. ${contextInfo}`,
+          {
+            error: e.message,
+            model: this.modelOptions.model,
+            provider: providerType,
+            attempt: attempt + 1,
+            maxAttempts,
+          },
+        );
+
+        // Check if error is retryable and we have attempts left
+        const isRetryable = this.isRetryableError(e);
+        const hasMoreAttempts = attempt < RETRY_CONFIG.maxRetries;
+
+        if (isRetryable && hasMoreAttempts) {
+          const delay = this.calculateRetryDelay(attempt);
+          logger.warn(
+            `[GoogleClient] Retryable error detected. Waiting ${delay}ms before retry ${attempt + 2}/${maxAttempts}`,
+          );
+          await sleep(delay);
+          continue; // Retry
+        }
+
+        // Not retryable or max retries reached - will throw error below
+        break;
+      }
+
+      // Success - return reply
+      if (!error && reply !== '') {
+        return reply;
+      }
+
+      // Success with empty reply (valid case for some models)
+      if (!error) {
+        return reply;
+      }
+
+      // Error occurred but will retry - loop continues
     }
 
+    // All retries exhausted or non-retryable error - format and throw error
     if (error != null && reply === '') {
       const providerType = this.project_id ? 'Vertex AI' : 'Gemini API';
       const errorDetails = [];
@@ -836,6 +957,7 @@ class GoogleClient extends BaseClient {
       }${troubleshootingInfo}" }`;
       throw new Error(errorMessage);
     }
+
     return reply;
   }
 
