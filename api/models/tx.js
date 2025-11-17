@@ -111,6 +111,31 @@ const vertexAIValues = {
 };
 
 /**
+ * Vertex AI Model Garden (MAAS) pricing
+ * Note: These are ESTIMATED values based on model size and capabilities.
+ * Actual pricing may vary. Verify against your GCP billing for accuracy.
+ * Source: Based on model specifications and comparable models
+ * @type {Object.<string, {prompt: number, completion: number}>}
+ */
+const modelGardenValues = {
+  // Minimax models
+  'minimax-m2': { prompt: 1.0, completion: 4.0 }, // Estimated - large Chinese model
+
+  // Qwen models (Alibaba)
+  'qwen3-thinking': { prompt: 0.5, completion: 2.5 }, // Estimated - qwen3-next-80b-a3b reasoning model
+  'qwen3-next-80b-a3b-thinking': { prompt: 0.5, completion: 2.5 }, // Alias
+
+  // Meta Llama 4 models (MoE architecture)
+  'llama-4-maverick': { prompt: 0.4, completion: 1.2 }, // Estimated - 17B with 128 experts
+  'llama-4-maverick-17b': { prompt: 0.4, completion: 1.2 }, // Alias
+  'llama-4-scout': { prompt: 0.3, completion: 1.0 }, // Estimated - 17B with 16 experts
+  'llama-4-scout-17b': { prompt: 0.3, completion: 1.0 }, // Alias
+
+  // DeepSeek specialized models
+  'deepseek-ocr': { prompt: 0.3, completion: 0.9 }, // Estimated - OCR specialized model
+};
+
+/**
  * Mapping of model token sizes to their respective multipliers for prompt and completion.
  * The rates are 1 USD per 1M tokens.
  * @type {Object.<string, {prompt: number, completion: number}>}
@@ -131,6 +156,8 @@ const tokenValues = Object.assign(
     'gpt-oss': { prompt: 0.05, completion: 0.2 },
     // Vertex AI specific pricing (Gemini models on Vertex AI)
     ...vertexAIValues,
+    // Vertex AI Model Garden (MAAS) pricing
+    ...modelGardenValues,
     // Specific model variants (check FIRST - more specific patterns at end)
     'gpt-3.5-turbo-1106': { prompt: 1, completion: 2 },
     'gpt-3.5-turbo-0125': { prompt: 0.5, completion: 1.5 },
@@ -412,6 +439,7 @@ const getVertexAIModelName = (model, isVertexAI = false) => {
 module.exports = {
   tokenValues,
   vertexAIValues,
+  modelGardenValues,
   getValueKey,
   getMultiplier,
   getCacheMultiplier,
