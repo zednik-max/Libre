@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { google } = require('googleapis');
 const { sleep } = require('@librechat/agents');
 const { logger } = require('@librechat/data-schemas');
@@ -6,8 +8,11 @@ const { concat } = require('@langchain/core/utils/stream');
 const { ChatVertexAI } = require('@langchain/google-vertexai');
 const { Tokenizer, getSafetySettings } = require('@librechat/api');
 const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
-const { GoogleGenerativeAI: GenAI } = require('@google/generative-ai');
 const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
+const {
+  GoogleGenerativeAI: GenAI,
+  GoogleAIFileManager,
+} = require('@google/generative-ai');
 const {
   googleGenConfigSchema,
   validateVisionModel,
@@ -230,6 +235,46 @@ const RETRY_CONFIG = {
   retryableErrors: ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'],
 };
 
+/**
+ * File API configuration
+ * Files larger than this threshold will use File API instead of inline base64
+ */
+const FILE_API_CONFIG = {
+  inlineThresholdBytes: 10 * 1024 * 1024, // 10MB - use File API for files larger than this
+  supportedMimeTypes: [
+    // Images
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    // Documents
+    'application/pdf',
+    'text/plain',
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'text/markdown',
+    // Audio
+    'audio/wav',
+    'audio/mp3',
+    'audio/aiff',
+    'audio/aac',
+    'audio/ogg',
+    'audio/flac',
+    // Video
+    'video/mp4',
+    'video/mpeg',
+    'video/mov',
+    'video/avi',
+    'video/x-flv',
+    'video/mpg',
+    'video/webm',
+    'video/wmv',
+    'video/3gpp',
+  ],
+};
+
 class GoogleClient extends BaseClient {
   constructor(credentials, options = {}) {
     super('apiKey', options);
@@ -332,6 +377,111 @@ class GoogleClient extends BaseClient {
         }
       });
     });
+  }
+
+  /**
+   * Get or create GoogleAIFileManager instance
+   * Only available for Google GenAI SDK (not Vertex AI)
+   * @returns {GoogleAIFileManager | null}
+   */
+  getFileManager() {
+    if (this.project_id) {
+      // Vertex AI doesn't use GoogleAIFileManager
+      // Files must be uploaded to Google Cloud Storage separately
+      logger.debug('[GoogleClient] File API not available for Vertex AI - use Google Cloud Storage');
+      return null;
+    }
+
+    if (!this.apiKey) {
+      logger.warn('[GoogleClient] Cannot create file manager without API key');
+      return null;
+    }
+
+    if (!this.fileManager) {
+      this.fileManager = new GoogleAIFileManager(this.apiKey);
+      logger.debug('[GoogleClient] Created GoogleAIFileManager instance');
+    }
+
+    return this.fileManager;
+  }
+
+  /**
+   * Upload a file using Google AI File API
+   * @param {object} file - File object with filepath, type, bytes
+   * @returns {Promise<{uri: string, mimeType: string, name: string} | null>}
+   */
+  async uploadFileToAPI(file) {
+    const fileManager = this.getFileManager();
+    if (!fileManager) {
+      logger.debug('[GoogleClient] File manager not available - falling back to inline');
+      return null;
+    }
+
+    // Check if file is supported by File API
+    if (!FILE_API_CONFIG.supportedMimeTypes.includes(file.type)) {
+      logger.debug(`[GoogleClient] File type ${file.type} not supported by File API`);
+      return null;
+    }
+
+    // Check if file exceeds inline threshold
+    if (file.bytes && file.bytes < FILE_API_CONFIG.inlineThresholdBytes) {
+      logger.debug(
+        `[GoogleClient] File size ${file.bytes} bytes is below threshold - using inline`,
+      );
+      return null;
+    }
+
+    try {
+      logger.info(`[GoogleClient] Uploading file to Google AI File API: ${file.filepath}`);
+
+      // Upload file
+      const uploadResult = await fileManager.uploadFile(file.filepath, {
+        mimeType: file.type,
+        displayName: file.filename || path.basename(file.filepath),
+      });
+
+      logger.info(
+        `[GoogleClient] File uploaded successfully: ${uploadResult.file.name} (URI: ${uploadResult.file.uri})`,
+      );
+
+      // Track uploaded file for cleanup
+      if (!this.uploadedFiles) {
+        this.uploadedFiles = [];
+      }
+      this.uploadedFiles.push(uploadResult.file.name);
+
+      return {
+        uri: uploadResult.file.uri,
+        mimeType: uploadResult.file.mimeType,
+        name: uploadResult.file.name,
+      };
+    } catch (error) {
+      logger.error('[GoogleClient] Failed to upload file to File API', {
+        error: error.message,
+        filepath: file.filepath,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Delete uploaded files from Google AI File API
+   * @param {string[]} fileNames - Array of file names to delete
+   */
+  async deleteUploadedFiles(fileNames) {
+    const fileManager = this.getFileManager();
+    if (!fileManager || !fileNames || fileNames.length === 0) {
+      return;
+    }
+
+    for (const fileName of fileNames) {
+      try {
+        await fileManager.deleteFile(fileName);
+        logger.debug(`[GoogleClient] Deleted uploaded file: ${fileName}`);
+      } catch (error) {
+        logger.warn(`[GoogleClient] Failed to delete uploaded file: ${fileName}`, error.message);
+      }
+    }
   }
 
   /* Required Client methods */
@@ -485,7 +635,7 @@ class GoogleClient extends BaseClient {
   }
 
   /**
-   * Formats messages for generative AI
+   * Formats messages for generative AI with File API support
    * @param {TMessage[]} messages
    * @returns
    */
@@ -493,6 +643,32 @@ class GoogleClient extends BaseClient {
     const formattedMessages = [];
     const attachments = await this.options.attachments;
     const latestMessage = { ...messages[messages.length - 1] };
+
+    // Try to upload large files to File API first
+    const uploadedFileData = [];
+    if (attachments && attachments.length > 0) {
+      for (const file of attachments) {
+        // Skip if file is embedded (RAG/context file)
+        if (file.embedded || file.metadata?.fileIdentifier) {
+          continue;
+        }
+
+        // Try to upload file to File API if available and file is large enough
+        const uploadedFile = await this.uploadFileToAPI(file);
+        if (uploadedFile) {
+          uploadedFileData.push({
+            fileData: {
+              fileUri: uploadedFile.uri,
+              mimeType: uploadedFile.mimeType,
+            },
+            uploaded: true,
+          });
+          logger.debug(`[GoogleClient] Using File API for: ${file.filename || file.filepath}`);
+        }
+      }
+    }
+
+    // Add inline images for files not uploaded to File API
     const files = await this.addImageURLs(latestMessage, attachments, VisionModes.generative);
     this.options.attachments = files;
     messages[messages.length - 1] = latestMessage;
@@ -501,14 +677,20 @@ class GoogleClient extends BaseClient {
       const role = _message.isCreatedByUser ? this.userLabel : this.modelLabel;
       const parts = [];
       parts.push({ text: _message.text });
-      if (!_message.image_urls?.length) {
-        formattedMessages.push({ role, parts });
-        continue;
+
+      // Add File API uploaded files (only for the latest message)
+      if (_message === latestMessage && uploadedFileData.length > 0) {
+        for (const fileData of uploadedFileData) {
+          parts.push(fileData);
+        }
       }
 
-      for (const images of _message.image_urls) {
-        if (images.inlineData) {
-          parts.push({ inlineData: images.inlineData });
+      // Add inline data for images
+      if (_message.image_urls?.length) {
+        for (const images of _message.image_urls) {
+          if (images.inlineData) {
+            parts.push({ inlineData: images.inlineData });
+          }
         }
       }
 
@@ -541,7 +723,8 @@ class GoogleClient extends BaseClient {
 
   /**
    * Builds the augmented prompt for attachments
-   * TODO: Add File API Support
+   * Note: Large files (>10MB) automatically use File API when available (Google GenAI only)
+   * Vertex AI users must upload files to Google Cloud Storage separately
    * @param {TMessage[]} messages
    */
   async buildAugmentedPrompt(messages = []) {
@@ -997,19 +1180,20 @@ class GoogleClient extends BaseClient {
   }
 
   async getCompletion(_payload, options = {}) {
-    const { onProgress, abortController } = options;
-    const safetySettings = getSafetySettings(this.modelOptions.model);
-    const streamRate = this.options.streamRate ?? Constants.DEFAULT_STREAM_RATE;
-    const modelName = this.modelOptions.modelName ?? this.modelOptions.model ?? '';
+    try {
+      const { onProgress, abortController } = options;
+      const safetySettings = getSafetySettings(this.modelOptions.model);
+      const streamRate = this.options.streamRate ?? Constants.DEFAULT_STREAM_RATE;
+      const modelName = this.modelOptions.modelName ?? this.modelOptions.model ?? '';
 
-    let reply = '';
-    /** @type {Error} */
-    let error;
-    let lastError;
-    const maxAttempts = RETRY_CONFIG.maxRetries + 1;
+      let reply = '';
+      /** @type {Error} */
+      let error;
+      let lastError;
+      const maxAttempts = RETRY_CONFIG.maxRetries + 1;
 
-    // Retry loop for transient failures
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Retry loop for transient failures
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
       error = null;
       reply = '';
 
@@ -1206,6 +1390,14 @@ class GoogleClient extends BaseClient {
     }
 
     return reply;
+    } finally {
+      // Clean up uploaded files from File API
+      if (this.uploadedFiles && this.uploadedFiles.length > 0) {
+        logger.debug(`[GoogleClient] Cleaning up ${this.uploadedFiles.length} uploaded files`);
+        await this.deleteUploadedFiles(this.uploadedFiles);
+        this.uploadedFiles = [];
+      }
+    }
   }
 
   /**
