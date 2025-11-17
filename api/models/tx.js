@@ -83,6 +83,34 @@ const bedrockValues = {
 };
 
 /**
+ * Vertex AI specific pricing for Gemini models
+ * source: https://cloud.google.com/vertex-ai/generative-ai/pricing
+ * Note: Vertex AI pricing is different from Gemini API pricing
+ * @type {Object.<string, {prompt: number, completion: number}>}
+ */
+const vertexAIValues = {
+  // Gemini 2.5 models on Vertex AI
+  'vertex-gemini-2.5-pro': { prompt: 1.25, completion: 10 }, // ≤200K context
+  'vertex-gemini-2.5-pro-long': { prompt: 2.5, completion: 15 }, // >200K context
+  'vertex-gemini-2.5-flash': { prompt: 0.3, completion: 2.5 },
+  'vertex-gemini-2.5-flash-lite': { prompt: 0.1, completion: 0.4 },
+
+  // Gemini 2.0 models on Vertex AI
+  'vertex-gemini-2.0-flash': { prompt: 0.15, completion: 0.6 },
+  'vertex-gemini-2.0-flash-lite': { prompt: 0.075, completion: 0.3 },
+
+  // Gemini 1.5 models on Vertex AI (character-based pricing converted to tokens)
+  // Conversion: ~4 characters = 1 token
+  // 1.5 Pro: $0.0003125 per 1k chars input = $1.25 per 1M tokens
+  // 1.5 Pro: $0.00125 per 1k chars output = $5.0 per 1M tokens
+  'vertex-gemini-1.5-pro': { prompt: 1.25, completion: 5.0 },
+  // 1.5 Flash: $0.00001875 per 1k chars input = $0.075 per 1M tokens
+  // 1.5 Flash: $0.000075 per 1k chars output = $0.3 per 1M tokens
+  'vertex-gemini-1.5-flash': { prompt: 0.075, completion: 0.3 },
+  'vertex-gemini-1.5-flash-8b': { prompt: 0.0375, completion: 0.15 }, // Estimated
+};
+
+/**
  * Mapping of model token sizes to their respective multipliers for prompt and completion.
  * The rates are 1 USD per 1M tokens.
  * @type {Object.<string, {prompt: number, completion: number}>}
@@ -99,8 +127,10 @@ const tokenValues = Object.assign(
     deepseek: { prompt: 0.28, completion: 0.42 },
     command: { prompt: 0.38, completion: 0.38 },
     gemma: { prompt: 0.02, completion: 0.04 }, // Base pattern (using gemma-3n-e4b pricing)
-    gemini: { prompt: 0.5, completion: 1.5 },
+    gemini: { prompt: 0.5, completion: 1.5 }, // Gemini API pricing (free tier)
     'gpt-oss': { prompt: 0.05, completion: 0.2 },
+    // Vertex AI specific pricing (Gemini models on Vertex AI)
+    ...vertexAIValues,
     // Specific model variants (check FIRST - more specific patterns at end)
     'gpt-3.5-turbo-1106': { prompt: 1, completion: 2 },
     'gpt-3.5-turbo-0125': { prompt: 0.5, completion: 1.5 },
@@ -355,11 +385,37 @@ const getCacheMultiplier = ({ valueKey, cacheType, model, endpoint, endpointToke
   return cacheTokenValues[valueKey]?.[cacheType] ?? null;
 };
 
+/**
+ * Transforms a model name to use Vertex AI pricing if applicable
+ * @param {string} model - The model name
+ * @param {boolean} isVertexAI - Whether this is a Vertex AI request
+ * @returns {string} The transformed model name for pricing lookup
+ */
+const getVertexAIModelName = (model, isVertexAI = false) => {
+  if (!isVertexAI || !model) {
+    return model;
+  }
+
+  // If already prefixed with vertex-, return as-is
+  if (model.startsWith('vertex-')) {
+    return model;
+  }
+
+  // Check if this is a Gemini model that has Vertex AI pricing
+  if (model.includes('gemini')) {
+    return `vertex-${model}`;
+  }
+
+  return model;
+};
+
 module.exports = {
   tokenValues,
+  vertexAIValues,
   getValueKey,
   getMultiplier,
   getCacheMultiplier,
+  getVertexAIModelName,
   defaultRate,
   cacheTokenValues,
 };

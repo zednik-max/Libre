@@ -66,6 +66,26 @@ const namespaces = {
     CacheKeys.VERTEX_MODEL_METADATA,
     Time.THIRTY_MINUTES,
   ),
+  /** Vertex AI quota monitoring - requests per minute (1 minute TTL) */
+  [CacheKeys.VERTEX_QUOTA_RPM]: standardCache(
+    CacheKeys.VERTEX_QUOTA_RPM,
+    Time.ONE_MINUTE,
+  ),
+  /** Vertex AI quota monitoring - tokens per minute (1 minute TTL) */
+  [CacheKeys.VERTEX_QUOTA_TPM]: standardCache(
+    CacheKeys.VERTEX_QUOTA_TPM,
+    Time.ONE_MINUTE,
+  ),
+  /** Vertex AI quota monitoring - requests per day (24 hour TTL) */
+  [CacheKeys.VERTEX_QUOTA_RPD]: standardCache(
+    CacheKeys.VERTEX_QUOTA_RPD,
+    Time.ONE_DAY,
+  ),
+  /** Vertex AI quota monitoring - tokens per day (24 hour TTL) */
+  [CacheKeys.VERTEX_QUOTA_TPD]: standardCache(
+    CacheKeys.VERTEX_QUOTA_TPD,
+    Time.ONE_DAY,
+  ),
 };
 
 /**
