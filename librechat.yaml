@@ -21,6 +21,13 @@ interface:
   bookmarks: true
   multiConvo: true
   agents: true
+  # Agent Marketplace - enables internal agent sharing
+  peoplePicker:
+    users: true      # Allow selecting specific users when sharing agents
+    groups: true     # Allow selecting groups
+    roles: true      # Allow selecting roles (e.g., all admins)
+  marketplace:
+    use: true        # Enable the agent marketplace UI
 
 registration:
   socialLogins: ['github', 'google', 'discord', 'openid']
