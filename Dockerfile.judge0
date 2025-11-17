@@ -1,29 +1,55 @@
 # Custom LibreChat image with Judge0 Code Interpreter integration
-FROM ghcr.io/danny-avila/librechat-dev:latest
+# Multi-stage build for better reliability
 
-# Copy Judge0 integration files
+# Stage 1: Build stage
+FROM ghcr.io/danny-avila/librechat-dev:latest AS builder
+
+WORKDIR /app
+
+# Copy Judge0 integration files (overwrite existing)
 COPY api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/languages.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/judge0.js /app/api/server/services/Tools/
 COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
-
-# Copy updated backend controller (CODE_API_KEY fix)
 COPY api/server/controllers/tools.js /app/api/server/controllers/
 
-# Copy updated frontend files
+# Copy updated frontend files (overwrite existing)
 COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
 COPY client/src/hooks/Plugins/useAuthCodeTool.ts /app/client/src/hooks/Plugins/
 COPY client/src/hooks/Plugins/useToolToggle.ts /app/client/src/hooks/Plugins/
 
-# Install dev dependencies needed for building
+# Ensure dev dependencies are installed
+RUN npm install --include=dev --legacy-peer-deps || npm install --include=dev
+
+# Build packages and frontend with error checking
+RUN echo "Building packages..." && \
+    npm run build:packages && \
+    echo "Packages built successfully" && \
+    echo "Building frontend..." && \
+    npm run frontend && \
+    echo "Frontend built successfully" && \
+    ls -la /app/client/dist && \
+    echo "Verifying index.html exists..." && \
+    test -f /app/client/dist/index.html && \
+    echo "Build verification complete!"
+
+# Stage 2: Production stage
+FROM ghcr.io/danny-avila/librechat:latest
+
+# Copy custom backend files
+COPY --from=builder /app/api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
+COPY --from=builder /app/api/server/services/Tools/languages.js /app/api/server/services/Tools/
+COPY --from=builder /app/api/server/services/Tools/judge0.js /app/api/server/services/Tools/
+COPY --from=builder /app/api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
+COPY --from=builder /app/api/server/controllers/tools.js /app/api/server/controllers/
+
+# Copy the freshly built frontend
+COPY --from=builder /app/client/dist /app/client/dist
+
+# Verify the frontend was copied
+RUN ls -la /app/client/dist && test -f /app/client/dist/index.html
+
 WORKDIR /app
-RUN npm install --include=dev
-
-# Rebuild packages and frontend
-RUN npm run build:packages && npm run frontend
-
-# Set back to production mode
 ENV NODE_ENV=production
 
-WORKDIR /app
 CMD ["npm", "run", "backend"]
