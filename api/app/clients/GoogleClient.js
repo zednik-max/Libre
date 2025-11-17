@@ -40,7 +40,141 @@ const endpointPrefix =
   loc === 'global' ? 'aiplatform.googleapis.com' : `${loc}-aiplatform.googleapis.com`;
 
 const settings = endpointSettings[EModelEndpoint.google];
-const EXCLUDED_GENAI_MODELS = /gemini-(?:1\.0|1-0|pro)/;
+
+/**
+ * Model configuration for Google/Vertex AI models
+ * This replaces fragile regex patterns with a maintainable configuration
+ */
+const MODEL_CONFIG = {
+  // Modern Gemini models (use GenAI SDK)
+  'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash-8b': { type: 'genai', capabilities: ['vision'] },
+  'learnlm-1.5-pro-experimental': { type: 'genai', capabilities: ['vision'] },
+  'gemma-2-9b-it': { type: 'genai', capabilities: [] },
+  'gemma-2-27b-it': { type: 'genai', capabilities: [] },
+
+  // Legacy models (excluded from GenAI SDK)
+  'gemini-1.0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-1.0-pro-latest': { type: 'legacy', capabilities: [] },
+  'gemini-1-0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro-vision': { type: 'legacy', capabilities: ['vision'] },
+};
+
+/**
+ * Model Garden publisher prefixes for Vertex AI
+ */
+const MODEL_GARDEN_PUBLISHERS = [
+  'meta', // Meta Llama models
+  'mistral-ai', // Mistral models
+  'mistralai', // Alternative Mistral prefix
+  'anthropic', // Claude via Vertex
+  'cohere', // Cohere models
+  'ai21', // AI21 Labs
+];
+
+/**
+ * Check if a model is a GenerativeAI model (uses GenAI SDK)
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model uses GenAI SDK
+ */
+function isGenerativeModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].type === 'genai';
+  }
+
+  // Fallback: Check if model name contains known GenAI patterns
+  // This handles versioned models like "gemini-1.5-pro-002"
+  const genaiPatterns = ['gemini-1.5', 'gemini-2', 'learnlm', 'gemma'];
+  const legacyPatterns = ['gemini-1.0', 'gemini-1-0', 'gemini-pro'];
+
+  // Check for legacy patterns first (more specific)
+  for (const pattern of legacyPatterns) {
+    if (modelName.includes(pattern)) {
+      return false;
+    }
+  }
+
+  // Then check for GenAI patterns
+  for (const pattern of genaiPatterns) {
+    if (modelName.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a model is excluded from GenAI SDK (legacy model)
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model is legacy
+ */
+function isLegacyModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].type === 'legacy';
+  }
+
+  // Fallback: Check if model name matches legacy patterns
+  return /gemini-(?:1\.0|1-0|pro)$/.test(modelName);
+}
+
+/**
+ * Check if a model is from Vertex AI Model Garden
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model is from Model Garden
+ */
+function isModelGardenModel(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check for Model Garden format: publishers/<publisher>/models/<model>
+  // or just the publisher prefix
+  for (const publisher of MODEL_GARDEN_PUBLISHERS) {
+    if (modelName.startsWith(`publishers/${publisher}`) || modelName.startsWith(publisher)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get the publisher/provider for a model
+ * @param {string} modelName - The model name
+ * @returns {string} - The publisher name
+ */
+function getModelPublisher(modelName) {
+  if (!modelName) {
+    return 'google';
+  }
+
+  // Check for Model Garden format
+  const publisherMatch = modelName.match(/^(?:publishers\/)?([^/]+)/);
+  if (publisherMatch) {
+    const publisher = publisherMatch[1];
+    if (MODEL_GARDEN_PUBLISHERS.includes(publisher)) {
+      return publisher;
+    }
+  }
+
+  return 'google'; // Default to Google
+}
 
 /** Retry configuration for transient failures */
 const RETRY_CONFIG = {
@@ -179,7 +313,7 @@ class GoogleClient extends BaseClient {
     this.options.attachments?.then((attachments) => this.checkVisionRequest(attachments));
 
     /** @type {boolean} Whether using a "GenerativeAI" Model */
-    this.isGenerativeModel = /gemini|learnlm|gemma/.test(this.modelOptions.model);
+    this.isGenerativeModel = isGenerativeModel(this.modelOptions.model);
 
     this.maxContextTokens =
       this.options.maxContextTokens ??
@@ -249,7 +383,7 @@ class GoogleClient extends BaseClient {
     /* Validation vision request */
     this.defaultVisionModel =
       this.options.visionModel ??
-      (!EXCLUDED_GENAI_MODELS.test(this.modelOptions.model)
+      (!isLegacyModel(this.modelOptions.model)
         ? this.modelOptions.model
         : 'gemini-pro-vision');
     const availableModels = this.options.modelsConfig?.[EModelEndpoint.google];
@@ -452,7 +586,7 @@ class GoogleClient extends BaseClient {
       formattedMessages: _messages,
     });
 
-    if (!this.project_id && !EXCLUDED_GENAI_MODELS.test(this.modelOptions.model)) {
+    if (!this.project_id && !isLegacyModel(this.modelOptions.model)) {
       const result = await this.buildGenerativeMessages(messages);
       result.tokenCountMap = tokenCountMap;
       result.promptTokens = promptTokens;
@@ -658,7 +792,7 @@ class GoogleClient extends BaseClient {
       client.presencePenalty = clientOptions.presencePenalty;
       client.maxOutputTokens = clientOptions.maxOutputTokens;
       return client;
-    } else if (!EXCLUDED_GENAI_MODELS.test(model)) {
+    } else if (!isLegacyModel(model)) {
       logger.debug('Creating GenAI client');
       return new GenAI(this.apiKey).getGenerativeModel({ model }, requestOptions);
     }
@@ -775,7 +909,7 @@ class GoogleClient extends BaseClient {
           );
         }
 
-      if (!EXCLUDED_GENAI_MODELS.test(modelName) && !this.project_id) {
+      if (!isLegacyModel(modelName) && !this.project_id) {
         /** @type {GenerativeModel} */
         const client = this.client;
         /** @type {GenerateContentRequest} */
@@ -1045,7 +1179,7 @@ class GoogleClient extends BaseClient {
     const model =
       this.options.titleModel ?? this.modelOptions.modelName ?? this.modelOptions.model ?? '';
     const safetySettings = getSafetySettings(model);
-    if (!EXCLUDED_GENAI_MODELS.test(model) && !this.project_id) {
+    if (!isLegacyModel(model) && !this.project_id) {
       logger.debug('Identified titling model as GenAI version');
       /** @type {GenerativeModel} */
       const client = this.client;
