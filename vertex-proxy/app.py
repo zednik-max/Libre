@@ -9,8 +9,11 @@ import json
 import time
 import random
 import asyncio
+import base64
+import uuid
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleRequest
+from google.cloud import storage
 import os
 
 app = FastAPI()
@@ -18,6 +21,25 @@ app = FastAPI()
 # Load service account credentials
 SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/gcp-sa-key.json")
 PROJECT_ID = "vertex-ai-project-skorec"
+
+# GCS bucket for temporary OCR image storage
+# DeepSeek OCR only accepts gs:// URLs, not base64
+GCS_BUCKET_NAME = os.getenv("GCS_OCR_BUCKET", f"vertex-ocr-temp-{PROJECT_ID}")
+GCS_TEMP_PREFIX = "deepseek-ocr-temp/"
+
+# Initialize GCS client (lazy loaded)
+_gcs_client = None
+
+def get_gcs_client():
+    """Get or create GCS storage client"""
+    global _gcs_client
+    if _gcs_client is None:
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE,
+            scopes=['https://www.googleapis.com/auth/cloud-platform']
+        )
+        _gcs_client = storage.Client(credentials=credentials, project=PROJECT_ID)
+    return _gcs_client
 
 # Token caching - reduces auth latency by 50-100ms per request
 # Tokens are valid for 1 hour, we refresh at 55 minutes to be safe
@@ -197,14 +219,74 @@ def select_endpoint(model_id):
 
     return None, False
 
+def upload_base64_to_gcs(base64_data, image_format="png"):
+    """
+    Upload base64 image to GCS and return gs:// URL
+
+    Args:
+        base64_data: Base64 encoded image string
+        image_format: Image format (png, jpg, jpeg, etc.)
+
+    Returns:
+        tuple: (gs_url, blob_name) for cleanup
+
+    Raises:
+        Exception: If upload fails
+    """
+    try:
+        # Decode base64 to binary
+        image_bytes = base64.b64decode(base64_data)
+
+        # Generate unique filename
+        unique_id = str(uuid.uuid4())
+        blob_name = f"{GCS_TEMP_PREFIX}{unique_id}.{image_format}"
+
+        # Get GCS client and bucket
+        client = get_gcs_client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(blob_name)
+
+        # Upload with content type
+        content_type = f"image/{image_format}"
+        blob.upload_from_string(image_bytes, content_type=content_type)
+
+        # Generate gs:// URL
+        gs_url = f"gs://{GCS_BUCKET_NAME}/{blob_name}"
+
+        size_kb = len(image_bytes) / 1024
+        print(f"DeepSeek OCR: Uploaded image to GCS ({size_kb:.1f}KB): {gs_url}")
+
+        return gs_url, blob_name
+
+    except Exception as e:
+        print(f"Error uploading to GCS: {e}")
+        raise
+
+def delete_from_gcs(blob_name):
+    """
+    Delete temporary file from GCS
+
+    Args:
+        blob_name: Name of the blob to delete
+    """
+    try:
+        client = get_gcs_client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(blob_name)
+        blob.delete()
+        print(f"DeepSeek OCR: Cleaned up temp file: {blob_name}")
+    except Exception as e:
+        print(f"Warning: Could not delete temp file {blob_name}: {e}")
+
 def transform_deepseek_ocr_images(body):
     """
     Transform OpenAI image format to DeepSeek OCR format
 
-    DeepSeek OCR on Vertex AI expects ONLY images, no text prompts.
+    DeepSeek OCR on Vertex AI expects ONLY images as gs:// URLs, no text prompts.
     This function:
-    1. Transforms image format from OpenAI to DeepSeek
-    2. REMOVES all text content (DeepSeek OCR doesn't use prompts)
+    1. Uploads base64 images to GCS
+    2. Transforms to gs:// URLs
+    3. REMOVES all text content (DeepSeek OCR doesn't use prompts)
 
     Input (OpenAI format from LibreChat):
         content: [
@@ -215,14 +297,14 @@ def transform_deepseek_ocr_images(body):
     Output (DeepSeek OCR format):
         content: [{
             type: "image_url",
-            image_url: "data:image/jpeg;base64,..."
+            image_url: "gs://bucket/temp-uuid.png"
         }]
 
     Args:
         body: Request body dict containing messages
 
     Returns:
-        Modified body dict with transformed image format and no text
+        tuple: (modified body, list of blob_names for cleanup)
 
     Raises:
         ValueError: If image URL format is unsupported
@@ -230,6 +312,7 @@ def transform_deepseek_ocr_images(body):
     messages = body.get("messages", [])
     images_transformed = 0
     text_removed = 0
+    uploaded_blobs = []  # Track uploaded files for cleanup
 
     for message in messages:
         content = message.get("content")
@@ -272,16 +355,34 @@ def transform_deepseek_ocr_images(body):
                         except Exception as e:
                             print(f"Warning: Could not estimate image size: {e}")
 
-                    # Transform to DeepSeek format (just the URL string)
+                    # Transform to DeepSeek format (upload to GCS if base64)
                     if url.startswith("data:image/"):
-                        # Base64 data URLs are NOT supported by DeepSeek OCR
-                        # We need to upload to GCS and use gs:// URLs instead
-                        raise ValueError(
-                            "DeepSeek OCR does not support base64 images. "
-                            "Images must be uploaded to GCS bucket first. "
-                            "Please use a model that supports base64 (like DeepSeek-V3) "
-                            "or implement GCS upload for DeepSeek OCR."
-                        )
+                        # Base64 data URLs need to be uploaded to GCS
+                        # Extract format and base64 data
+                        try:
+                            # Parse data URL: data:image/png;base64,iVBORw0...
+                            parts = url.split(";base64,")
+                            if len(parts) != 2:
+                                raise ValueError("Invalid data URL format")
+
+                            # Extract image format (png, jpg, jpeg, etc.)
+                            format_part = parts[0]  # "data:image/png"
+                            image_format = format_part.split("/")[-1].lower()  # "png"
+
+                            # Get base64 data
+                            base64_data = parts[1]
+
+                            # Upload to GCS
+                            gs_url, blob_name = upload_base64_to_gcs(base64_data, image_format)
+
+                            # Replace with GCS URL
+                            item["image_url"] = gs_url
+                            uploaded_blobs.append(blob_name)
+                            images_transformed += 1
+
+                        except Exception as e:
+                            print(f"Error uploading image to GCS: {e}")
+                            raise ValueError(f"Failed to upload image to GCS: {str(e)}")
                     elif url.startswith("gs://"):
                         # GCS URL - pass directly
                         item["image_url"] = url
@@ -308,8 +409,10 @@ def transform_deepseek_ocr_images(body):
         print(f"DeepSeek OCR: Transformed {images_transformed} image(s) from OpenAI to DeepSeek format")
     if text_removed > 0:
         print(f"DeepSeek OCR: Removed {text_removed} text prompt(s) (OCR doesn't use prompts)")
+    if uploaded_blobs:
+        print(f"DeepSeek OCR: Uploaded {len(uploaded_blobs)} image(s) to GCS for processing")
 
-    return body
+    return body, uploaded_blobs
 
 @app.get("/health")
 async def health():
@@ -380,6 +483,7 @@ async def chat_completions(request: Request):
             raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
 
         # Transform images for DeepSeek OCR (converts OpenAI format to DeepSeek format)
+        uploaded_blobs = []  # Track GCS uploads for cleanup
         if model_id == "deepseek-ocr":
             try:
                 # Log the BEFORE state
@@ -389,7 +493,7 @@ async def chat_completions(request: Request):
                 print(json_lib.dumps(body.get("messages", []), indent=2, ensure_ascii=False)[:2000])
                 print("=" * 80)
 
-                body = transform_deepseek_ocr_images(body)
+                body, uploaded_blobs = transform_deepseek_ocr_images(body)
 
                 # Log the AFTER state
                 print("=" * 80)
@@ -486,6 +590,11 @@ async def chat_completions(request: Request):
                             finally:
                                 await client.aclose()
 
+                                # Cleanup GCS temp files for DeepSeek OCR
+                                if uploaded_blobs:
+                                    for blob_name in uploaded_blobs:
+                                        delete_from_gcs(blob_name)
+
                         return StreamingResponse(generate(), media_type="text/event-stream")
                     else:
                         # Non-streaming response
@@ -518,6 +627,12 @@ async def chat_completions(request: Request):
                         # Success!
                         await client.aclose()
                         print(f"Request succeeded after {retry_count} total attempt(s)")
+
+                        # Cleanup GCS temp files for DeepSeek OCR
+                        if uploaded_blobs:
+                            for blob_name in uploaded_blobs:
+                                delete_from_gcs(blob_name)
+
                         return JSONResponse(content=response.json())
 
                 except HTTPException:
