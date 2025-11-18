@@ -5,6 +5,22 @@ version: 1.3.1
 
 cache: true
 
+# TESTING: Minimal modelSpecs configuration
+# This should ADD friendly names WITHOUT breaking endpoints
+modelSpecs:
+  enforce: false      # Don't force modelSpecs - allow normal endpoints too
+  prioritize: false   # Don't auto-select modelSpecs - allow endpoint selection
+  list:
+    # Test with just ONE model first
+    - name: "gemini-3-pro-preview"
+      label: "Gemini 3 Pro Preview"
+      description: "Google's flagship model with 1M context - state-of-the-art multimodal reasoning"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "google"
+        model: "gemini-3-pro-preview"
+
 interface:
   privacyPolicy:
     externalUrl: 'https://librechat.ai/privacy-policy'
