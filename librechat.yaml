@@ -38,7 +38,7 @@ endpoints:
     - name: 'Vertex-AI'
       apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
       baseURL: 'http://vertex-proxy:4000'
-      iconURL: '/assets/vertex-ai.svg'  
+      iconURL: '/assets/vertex-ai.svg'
 
       models:
         default:
@@ -81,7 +81,6 @@ endpoints:
       #     - 'image/gif'
       #   maxFileSize: 20971520  # 20MB
 
-  custom:
     # Mistral AI
     # Requires MISTRAL_API_KEY in .env
     - name: 'Mistral'
