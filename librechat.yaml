@@ -60,6 +60,18 @@ endpoints:
       # Don't drop parameters - let the proxy handle them
       dropParams: []
 
+      # Enable image uploads for DeepSeek OCR vision model
+      fileConfig:
+        endpoints:
+          - 'deepseek-ocr'  # Only this model supports vision/OCR
+        supportedMimeTypes:
+          - 'image/png'
+          - 'image/jpeg'
+          - 'image/jpg'
+          - 'image/webp'
+          - 'image/gif'
+        maxFileSize: 20971520  # 20MB
+
     # Mistral AI
     - name: 'Mistral'
       apiKey: '${MISTRAL_API_KEY}'
