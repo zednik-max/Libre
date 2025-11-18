@@ -42,15 +42,22 @@ endpoints:
 
       models:
         default:
-          - 'deepseek-r1'
-          - 'deepseek-v3'
-          - 'deepseek-ocr'
-          - 'minimax-m2'
-          - 'qwen3-235b'
-          - 'llama-3.3-70b'
-          - 'qwen3-thinking'
-          - 'llama-4-maverick'
-          - 'llama-4-scout'
+          # Reasoning models
+          - 'deepseek-r1'              # DeepSeek R1 - Advanced reasoning (text-only)
+          - 'qwen3-thinking'           # Qwen3 Next 80B - Thinking mode (text-only)
+
+          # Text generation models
+          - 'deepseek-v3'              # DeepSeek V3 - General purpose (text-only)
+          - 'qwen3-235b'               # Qwen3 235B - Instruct (text-only)
+          - 'minimax-m2'               # Minimax M2 (text-only)
+          - 'llama-3.3-70b'            # Llama 3.3 70B (text-only)
+          - 'llama-4-maverick'         # Llama 4 Maverick 17B (text-only)
+          - 'llama-4-scout'            # Llama 4 Scout 17B (text-only)
+
+          # Vision models (EXPERIMENTAL - test before using)
+          # - 'deepseek-ocr'           # DeepSeek OCR (BROKEN - returns garbage)
+          # - 'qwen3-vl-235b'          # Qwen3-VL 235B (vision+text) - NOT YET CONFIGURED
+
         fetch: false
 
       titleConvo: true
@@ -60,17 +67,19 @@ endpoints:
       # Don't drop parameters - let the proxy handle them
       dropParams: []
 
-      # Enable image uploads for DeepSeek OCR vision model
-      fileConfig:
-        endpoints:
-          - 'deepseek-ocr'  # Only this model supports vision/OCR
-        supportedMimeTypes:
-          - 'image/png'
-          - 'image/jpeg'
-          - 'image/jpg'
-          - 'image/webp'
-          - 'image/gif'
-        maxFileSize: 20971520  # 20MB
+      # Vision models configuration (DISABLED until working models confirmed)
+      # Uncomment and test individual models
+      # fileConfig:
+      #   endpoints:
+      #     - 'deepseek-ocr'         # BROKEN - returns hallucinated garbage
+      #     - 'qwen3-vl-235b'        # Test this if available in your region
+      #   supportedMimeTypes:
+      #     - 'image/png'
+      #     - 'image/jpeg'
+      #     - 'image/jpg'
+      #     - 'image/webp'
+      #     - 'image/gif'
+      #   maxFileSize: 20971520  # 20MB
 
     # Mistral AI
     - name: 'Mistral'
