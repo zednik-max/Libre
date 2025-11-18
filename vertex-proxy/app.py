@@ -512,6 +512,9 @@ async def chat_completions(request: Request):
         if not endpoint:
             raise HTTPException(status_code=500, detail=f"No endpoints available for model {model_id}")
 
+        # Save original model_id before replacing it (needed for response logging)
+        original_model_id = model_id
+
         # Replace model name with actual Vertex AI model ID
         body["model"] = endpoint["model"]
 
@@ -631,17 +634,17 @@ async def chat_completions(request: Request):
                         # Parse response
                         try:
                             response_json = response.json()
-                            print(f"DEBUG: model_id = '{model_id}', type = {type(model_id)}")
+                            print(f"DEBUG: original_model_id = '{original_model_id}', current model = '{body.get('model')}'")
                             print(f"DEBUG: Response status = {response.status_code}, has JSON = True")
 
                             # Log response for DeepSeek OCR debugging
-                            if model_id == "deepseek-ocr":
+                            if original_model_id == "deepseek-ocr":
                                 print("=" * 80)
                                 print("DeepSeek OCR: RESPONSE FROM VERTEX AI")
                                 print(json.dumps(response_json, indent=2, ensure_ascii=False)[:3000])
                                 print("=" * 80)
                             else:
-                                print(f"DEBUG: model_id '{model_id}' does not match 'deepseek-ocr'")
+                                print(f"DEBUG: original_model_id '{original_model_id}' is not 'deepseek-ocr'")
 
                         except Exception as e:
                             print(f"ERROR: Failed to parse response JSON: {e}")
