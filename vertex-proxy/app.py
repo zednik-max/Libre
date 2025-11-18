@@ -274,8 +274,21 @@ def transform_deepseek_ocr_images(body):
 
                     # Transform to DeepSeek format (just the URL string)
                     if url.startswith("data:image/"):
-                        # Base64 data URL - pass directly
-                        item["image_url"] = url
+                        # Base64 data URL - try sending JUST the base64 data without prefix
+                        # DeepSeek OCR might expect raw base64, not data URI format
+                        try:
+                            # Extract just the base64 part after "base64,"
+                            if ",base64," in url or ";base64," in url:
+                                base64_only = url.split("base64,", 1)[1]
+                                print(f"DeepSeek OCR: Extracted raw base64 data (length: {len(base64_only)})")
+                                item["image_url"] = base64_only
+                            else:
+                                # Fallback: send full data URI if no base64 marker found
+                                print(f"DeepSeek OCR: Sending full data URI (no base64 marker found)")
+                                item["image_url"] = url
+                        except Exception as e:
+                            print(f"Warning: Could not extract base64: {e}, sending full URL")
+                            item["image_url"] = url
                         images_transformed += 1
                     elif url.startswith("gs://"):
                         # GCS URL - pass directly
