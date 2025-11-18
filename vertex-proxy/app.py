@@ -628,16 +628,29 @@ async def chat_completions(request: Request):
                         await client.aclose()
                         print(f"Request succeeded after {retry_count} total attempt(s)")
 
-                        # Log response for DeepSeek OCR debugging
-                        response_json = response.json()
-                        if model_id == "deepseek-ocr":
-                            print("=" * 80)
-                            print("DeepSeek OCR: RESPONSE FROM VERTEX AI")
-                            print(json.dumps(response_json, indent=2, ensure_ascii=False)[:3000])
-                            print("=" * 80)
+                        # Parse response
+                        try:
+                            response_json = response.json()
+                            print(f"DEBUG: model_id = '{model_id}', type = {type(model_id)}")
+                            print(f"DEBUG: Response status = {response.status_code}, has JSON = True")
+
+                            # Log response for DeepSeek OCR debugging
+                            if model_id == "deepseek-ocr":
+                                print("=" * 80)
+                                print("DeepSeek OCR: RESPONSE FROM VERTEX AI")
+                                print(json.dumps(response_json, indent=2, ensure_ascii=False)[:3000])
+                                print("=" * 80)
+                            else:
+                                print(f"DEBUG: model_id '{model_id}' does not match 'deepseek-ocr'")
+
+                        except Exception as e:
+                            print(f"ERROR: Failed to parse response JSON: {e}")
+                            print(f"DEBUG: Response text: {response.text[:500]}")
+                            raise
 
                         # Cleanup GCS temp files for DeepSeek OCR
                         if uploaded_blobs:
+                            print(f"DEBUG: Cleaning up {len(uploaded_blobs)} GCS files")
                             for blob_name in uploaded_blobs:
                                 delete_from_gcs(blob_name)
 
