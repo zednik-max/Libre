@@ -5,6 +5,254 @@ version: 1.3.1
 
 cache: true
 
+# Human-friendly model names for better UX
+modelSpecs:
+  list:
+    # OpenAI Models
+    - name: "gpt-4o"
+      label: "GPT-4o"
+      description: "Most capable multimodal GPT-4 - fast and intelligent"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "gpt-4o"
+
+    - name: "gpt-4o-mini"
+      label: "GPT-4o Mini"
+      description: "Smaller, faster GPT-4o - excellent value"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "gpt-4o-mini"
+
+    - name: "o1"
+      label: "o1"
+      description: "Advanced reasoning model - best for complex problems"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "o1"
+
+    - name: "o1-mini"
+      label: "o1 Mini"
+      description: "Faster reasoning model - good for coding and STEM"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "o1-mini"
+
+    - name: "o1-pro"
+      label: "o1 Pro"
+      description: "Most advanced reasoning - for hardest problems"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "o1-pro"
+
+    - name: "gpt-4-turbo"
+      label: "GPT-4 Turbo"
+      description: "Previous flagship - 128k context"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "gpt-4-turbo"
+
+    - name: "gpt-3.5-turbo"
+      label: "GPT-3.5 Turbo"
+      description: "Fast and affordable - great for simple tasks"
+      group: "openAI"
+      preset:
+        endpoint: "openAI"
+        model: "gpt-3.5-turbo"
+
+    # Google Gemini Models
+    - name: "gemini-3-pro-preview"
+      label: "Gemini 3 Pro Preview"
+      description: "Google's flagship model with 1M context - state-of-the-art multimodal reasoning"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-3-pro-preview"
+
+    - name: "gemini-2.5-pro"
+      label: "Gemini 2.5 Pro"
+      description: "Most capable Gemini 2.5 model - excellent for complex tasks"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-2.5-pro"
+
+    - name: "gemini-2.5-flash"
+      label: "Gemini 2.5 Flash"
+      description: "Fast and efficient - balanced performance"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-2.5-flash"
+
+    - name: "gemini-2.5-flash-lite"
+      label: "Gemini 2.5 Flash Lite"
+      description: "Lightweight and fast - great for quick tasks"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-2.5-flash-lite"
+
+    - name: "gemini-2.0-flash"
+      label: "Gemini 2.0 Flash"
+      description: "Previous generation fast model"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-2.0-flash"
+
+    - name: "gemini-2.0-flash-lite"
+      label: "Gemini 2.0 Flash Lite"
+      description: "Previous generation lightweight model"
+      group: "google"
+      preset:
+        endpoint: "google"
+        model: "gemini-2.0-flash-lite"
+
+    # Vertex AI Models
+    - name: "deepseek-r1"
+      label: "DeepSeek R1"
+      description: "Advanced reasoning model - excels at complex problem solving"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "deepseek-r1"
+
+    - name: "deepseek-v3"
+      label: "DeepSeek V3"
+      description: "General purpose model - balanced performance"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "deepseek-v3"
+
+    - name: "qwen3-thinking"
+      label: "Qwen3 Next 80B Thinking"
+      description: "Thinking mode - shows reasoning process"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "qwen3-thinking"
+
+    - name: "qwen3-235b"
+      label: "Qwen3 235B Instruct"
+      description: "Large instruct model - excellent for following instructions"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "qwen3-235b"
+
+    - name: "minimax-m2"
+      label: "Minimax M2"
+      description: "Efficient general purpose model"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "minimax-m2"
+
+    - name: "llama-3.3-70b"
+      label: "Llama 3.3 70B"
+      description: "Meta's latest Llama model - strong general capabilities"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "llama-3.3-70b"
+
+    - name: "llama-4-maverick"
+      label: "Llama 4 Maverick 17B"
+      description: "Early preview - creative problem solving and innovation"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "llama-4-maverick"
+
+    - name: "llama-4-scout"
+      label: "Llama 4 Scout 17B"
+      description: "Early preview - excellent for technical documentation and log analysis"
+      group: "Vertex-AI"
+      preset:
+        endpoint: "Vertex-AI"
+        model: "llama-4-scout"
+
+    # Mistral Models
+    - name: "mistral-large-latest"
+      label: "Mistral Large"
+      description: "Flagship model - best for complex reasoning"
+      group: "Mistral"
+      preset:
+        endpoint: "Mistral"
+        model: "mistral-large-latest"
+
+    - name: "mistral-medium-latest"
+      label: "Mistral Medium"
+      description: "Balanced performance and cost"
+      group: "Mistral"
+      preset:
+        endpoint: "Mistral"
+        model: "mistral-medium-latest"
+
+    - name: "mistral-small-latest"
+      label: "Mistral Small"
+      description: "Fast and efficient for most tasks"
+      group: "Mistral"
+      preset:
+        endpoint: "Mistral"
+        model: "mistral-small-latest"
+
+    - name: "codestral-latest"
+      label: "Codestral"
+      description: "Specialized for coding tasks"
+      group: "Mistral"
+      preset:
+        endpoint: "Mistral"
+        model: "codestral-latest"
+
+    # Perplexity Models
+    - name: "sonar"
+      label: "Sonar"
+      description: "Lightweight search with 127k context"
+      group: "Perplexity"
+      preset:
+        endpoint: "Perplexity"
+        model: "sonar"
+
+    - name: "sonar-pro"
+      label: "Sonar Pro"
+      description: "Advanced search with 200k context"
+      group: "Perplexity"
+      preset:
+        endpoint: "Perplexity"
+        model: "sonar-pro"
+
+    - name: "sonar-reasoning"
+      label: "Sonar Reasoning"
+      description: "Real-time reasoning with search (127k context)"
+      group: "Perplexity"
+      preset:
+        endpoint: "Perplexity"
+        model: "sonar-reasoning"
+
+    - name: "sonar-reasoning-pro"
+      label: "Sonar Reasoning Pro"
+      description: "DeepSeek-R1 powered reasoning with search (127k context)"
+      group: "Perplexity"
+      preset:
+        endpoint: "Perplexity"
+        model: "sonar-reasoning-pro"
+
+    - name: "sonar-deep-research"
+      label: "Sonar Deep Research"
+      description: "Long-form research reports with citations"
+      group: "Perplexity"
+      preset:
+        endpoint: "Perplexity"
+        model: "sonar-deep-research"
+
 interface:
   privacyPolicy:
     externalUrl: 'https://librechat.ai/privacy-policy'
