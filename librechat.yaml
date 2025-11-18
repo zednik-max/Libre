@@ -38,7 +38,7 @@ endpoints:
     - name: 'Vertex-AI'
       apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
       baseURL: 'http://vertex-proxy:4000'
-      iconURL: '/assets/vertex-ai.svg'  
+      iconURL: '/assets/google.svg'  
 
       models:
         default:
