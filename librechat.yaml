@@ -81,6 +81,44 @@ endpoints:
       #     - 'image/gif'
       #   maxFileSize: 20971520  # 20MB
 
+  # Google Gemini (Native Endpoint)
+  # Requires GOOGLE_KEY in .env (get it from https://aistudio.google.com/apikey)
+  google:
+    # Gemini models (latest generation)
+    models:
+      default:
+        - 'gemini-3-pro-preview'       # NEW: Gemini 3 Pro Preview (released today!)
+        - 'gemini-2.5-pro'             # Gemini 2.5 Pro - Most capable
+        - 'gemini-2.5-flash'           # Gemini 2.5 Flash - Fast and efficient
+        - 'gemini-2.5-flash-lite'      # Gemini 2.5 Flash Lite - Lightweight
+        - 'gemini-2.0-flash'           # Gemini 2.0 Flash
+        - 'gemini-2.0-flash-lite'      # Gemini 2.0 Flash Lite
+      fetch: false  # Set to true to dynamically fetch available models
+
+    titleConvo: true
+    titleModel: 'gemini-2.5-flash-lite'  # Efficient model for title generation
+    modelDisplayLabel: 'Google Gemini'
+
+    # All Gemini models support vision (multimodal)
+    fileConfig:
+      supportedMimeTypes:
+        - 'image/png'
+        - 'image/jpeg'
+        - 'image/jpg'
+        - 'image/webp'
+        - 'image/gif'
+        - 'application/pdf'
+      maxFileSize: 20971520  # 20MB
+
+    # Optional: Google Safety Settings (uncomment to customize)
+    # Options: BLOCK_NONE, BLOCK_ONLY_HIGH, BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE
+    # GOOGLE_SAFETY_SEXUALLY_EXPLICIT: 'BLOCK_ONLY_HIGH'
+    # GOOGLE_SAFETY_HATE_SPEECH: 'BLOCK_ONLY_HIGH'
+    # GOOGLE_SAFETY_HARASSMENT: 'BLOCK_ONLY_HIGH'
+    # GOOGLE_SAFETY_DANGEROUS_CONTENT: 'BLOCK_ONLY_HIGH'
+    # GOOGLE_SAFETY_CIVIC_INTEGRITY: 'BLOCK_ONLY_HIGH'
+
+  custom:
     # Mistral AI (DISABLED - No API key configured)
     # Uncomment and add MISTRAL_API_KEY to .env to enable
     # - name: 'Mistral'
