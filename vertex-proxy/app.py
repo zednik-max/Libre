@@ -360,7 +360,20 @@ async def chat_completions(request: Request):
         # Transform images for DeepSeek OCR (converts OpenAI format to DeepSeek format)
         if model_id == "deepseek-ocr":
             try:
+                # Log the BEFORE state
+                import json as json_lib
+                print("=" * 80)
+                print("DeepSeek OCR: REQUEST BEFORE TRANSFORMATION")
+                print(json_lib.dumps(body.get("messages", []), indent=2, ensure_ascii=False)[:2000])
+                print("=" * 80)
+
                 body = transform_deepseek_ocr_images(body)
+
+                # Log the AFTER state
+                print("=" * 80)
+                print("DeepSeek OCR: REQUEST AFTER TRANSFORMATION")
+                print(json_lib.dumps(body.get("messages", []), indent=2, ensure_ascii=False)[:2000])
+                print("=" * 80)
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Image transformation error: {str(e)}")
             except Exception as e:
