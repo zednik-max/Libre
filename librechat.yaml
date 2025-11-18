@@ -81,93 +81,55 @@ endpoints:
       #     - 'image/gif'
       #   maxFileSize: 20971520  # 20MB
 
-  # Google Gemini (Native Endpoint)
-  # Requires GOOGLE_KEY in .env (get it from https://aistudio.google.com/apikey)
-  google:
-    # Gemini models (all multimodal - support text + images + video)
-    models:
-      default:
-        - 'gemini-3-pro-preview'       # NEW: Gemini 3 Pro Preview - FLAGSHIP MODEL (1M context)
-        - 'gemini-2.5-pro'             # Gemini 2.5 Pro - Most capable
-        - 'gemini-2.5-flash'           # Gemini 2.5 Flash - Fast and efficient
-        - 'gemini-2.5-flash-lite'      # Gemini 2.5 Flash Lite - Lightweight
-        - 'gemini-2.0-flash'           # Gemini 2.0 Flash
-        - 'gemini-2.0-flash-lite'      # Gemini 2.0 Flash Lite
-      fetch: false  # Set to true to dynamically fetch available models
-
-    titleConvo: true
-    titleModel: 'gemini-2.5-flash-lite'  # Efficient model for title generation
-    modelDisplayLabel: 'Google Gemini'
-
-    # All Gemini models support vision (multimodal)
-    # Gemini 3 Pro: State-of-the-art multimodal (81% MMMU-Pro, 87.6% Video-MMMU)
-    fileConfig:
-      supportedMimeTypes:
-        - 'image/png'
-        - 'image/jpeg'
-        - 'image/jpg'
-        - 'image/webp'
-        - 'image/gif'
-        - 'application/pdf'
-      maxFileSize: 20971520  # 20MB
-
-    # Optional: Google Safety Settings (uncomment to customize)
-    # Options: BLOCK_NONE, BLOCK_ONLY_HIGH, BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE
-    # GOOGLE_SAFETY_SEXUALLY_EXPLICIT: 'BLOCK_ONLY_HIGH'
-    # GOOGLE_SAFETY_HATE_SPEECH: 'BLOCK_ONLY_HIGH'
-    # GOOGLE_SAFETY_HARASSMENT: 'BLOCK_ONLY_HIGH'
-    # GOOGLE_SAFETY_DANGEROUS_CONTENT: 'BLOCK_ONLY_HIGH'
-    # GOOGLE_SAFETY_CIVIC_INTEGRITY: 'BLOCK_ONLY_HIGH'
-
   custom:
-    # Mistral AI (DISABLED - No API key configured)
-    # Uncomment and add MISTRAL_API_KEY to .env to enable
-    # - name: 'Mistral'
-    #   apiKey: '${MISTRAL_API_KEY}'
-    #   baseURL: 'https://api.mistral.ai/v1'
-    #
-    #   models:
-    #     default:
-    #       - 'mistral-large-latest'
-    #       - 'mistral-medium-latest'
-    #       - 'mistral-small-latest'
-    #       - 'codestral-latest'
-    #     fetch: false
-    #
-    #   titleConvo: true
-    #   titleModel: 'mistral-small-latest'
-    #   modelDisplayLabel: 'Mistral'
-    #
-    #   # Mistral requires dropping these parameters to avoid 422 errors
-    #   dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p', 'logit_bias']
+    # Mistral AI
+    # Requires MISTRAL_API_KEY in .env
+    - name: 'Mistral'
+      apiKey: '${MISTRAL_API_KEY}'
+      baseURL: 'https://api.mistral.ai/v1'
 
-    # Perplexity AI (DISABLED - No API key configured)
-    # Uncomment and add PERPLEXITY_API_KEY to .env to enable
-    # - name: 'Perplexity'
-    #   apiKey: '${PERPLEXITY_API_KEY}'
-    #   baseURL: 'https://api.perplexity.ai'
-    #
-    #   models:
-    #     default:
-    #       - 'sonar'                    # Lightweight search (127k context)
-    #       - 'sonar-pro'                # Advanced search (200k context)
-    #       - 'sonar-reasoning'          # Real-time reasoning with search (127k)
-    #       - 'sonar-reasoning-pro'      # DeepSeek-R1 powered reasoning (127k)
-    #       - 'sonar-deep-research'      # Long-form research reports
-    #     fetch: false
-    #
-    #   titleConvo: true
-    #   titleModel: 'sonar'
-    #   modelDisplayLabel: 'Perplexity'
-    #
-    #   # Perplexity doesn't support these OpenAI parameters
-    #   dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p']
-    #
-    #   # Perplexity-specific parameters (optional)
-    #   # addParams:
-    #   #   return_citations: true
-    #   #   return_images: false
-    #   #   return_related_questions: false
+      models:
+        default:
+          - 'mistral-large-latest'
+          - 'mistral-medium-latest'
+          - 'mistral-small-latest'
+          - 'codestral-latest'
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'mistral-small-latest'
+      modelDisplayLabel: 'Mistral'
+
+      # Mistral requires dropping these parameters to avoid 422 errors
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p', 'logit_bias']
+
+    # Perplexity AI
+    # Requires PERPLEXITY_API_KEY in .env
+    - name: 'Perplexity'
+      apiKey: '${PERPLEXITY_API_KEY}'
+      baseURL: 'https://api.perplexity.ai'
+
+      models:
+        default:
+          - 'sonar'                    # Lightweight search (127k context)
+          - 'sonar-pro'                # Advanced search (200k context)
+          - 'sonar-reasoning'          # Real-time reasoning with search (127k)
+          - 'sonar-reasoning-pro'      # DeepSeek-R1 powered reasoning (127k)
+          - 'sonar-deep-research'      # Long-form research reports
+        fetch: false
+
+      titleConvo: true
+      titleModel: 'sonar'
+      modelDisplayLabel: 'Perplexity'
+
+      # Perplexity doesn't support these OpenAI parameters
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p']
+
+      # Perplexity-specific parameters (optional)
+      # addParams:
+      #   return_citations: true
+      #   return_images: false
+      #   return_related_questions: false
 
 # Web Search Configuration
 # Enables web search capabilities for AI agents
