@@ -197,6 +197,98 @@ def select_endpoint(model_id):
 
     return None, False
 
+def transform_deepseek_ocr_images(body):
+    """
+    Transform OpenAI image format to DeepSeek OCR format
+
+    DeepSeek OCR on Vertex AI expects a different image format than OpenAI's format.
+    LibreChat sends OpenAI format, so we transform it here.
+
+    Input (OpenAI format from LibreChat):
+        content: [{
+            type: "image_url",
+            image_url: { url: "data:image/jpeg;base64,..." }
+        }]
+
+    Output (DeepSeek OCR format):
+        content: [{
+            type: "image_url",
+            image_url: "data:image/jpeg;base64,..."
+        }]
+
+    Args:
+        body: Request body dict containing messages
+
+    Returns:
+        Modified body dict with transformed image format
+
+    Raises:
+        ValueError: If image URL format is unsupported
+    """
+    messages = body.get("messages", [])
+    images_transformed = 0
+
+    for message in messages:
+        content = message.get("content")
+
+        # Skip if content is string (text-only message)
+        if not isinstance(content, list):
+            continue
+
+        # Transform each content item
+        for item in content:
+            if item.get("type") == "image_url":
+                image_url_obj = item.get("image_url")
+
+                # OpenAI format: {"url": "data:...", "detail": "..."}
+                if isinstance(image_url_obj, dict):
+                    url = image_url_obj.get("url", "")
+
+                    if not url:
+                        raise ValueError("Image URL is empty")
+
+                    # Check image size estimate (base64 size * 0.75 ≈ binary size)
+                    if url.startswith("data:image/"):
+                        # Extract base64 data (after comma)
+                        try:
+                            base64_data = url.split(",", 1)[1] if "," in url else url
+                            estimated_size_mb = len(base64_data) * 0.75 / (1024 * 1024)
+
+                            if estimated_size_mb > 20:
+                                raise ValueError(f"Image too large: {estimated_size_mb:.1f}MB (max 20MB)")
+
+                            print(f"DeepSeek OCR: Transforming base64 image (~{estimated_size_mb:.2f}MB)")
+                        except Exception as e:
+                            print(f"Warning: Could not estimate image size: {e}")
+
+                    # Transform to DeepSeek format (just the URL string)
+                    if url.startswith("data:image/"):
+                        # Base64 data URL - extract and pass directly
+                        item["image_url"] = url
+                        images_transformed += 1
+                    elif url.startswith("gs://"):
+                        # GCS URL - pass directly
+                        item["image_url"] = url
+                        images_transformed += 1
+                        print(f"DeepSeek OCR: Using GCS URL: {url[:50]}...")
+                    elif url.startswith("http://") or url.startswith("https://"):
+                        # HTTP URL - pass directly
+                        item["image_url"] = url
+                        images_transformed += 1
+                        print(f"DeepSeek OCR: Using HTTP URL: {url[:50]}...")
+                    else:
+                        raise ValueError(f"Unsupported image URL format: {url[:50]}...")
+
+                # Already in correct format (string) - no transformation needed
+                elif isinstance(image_url_obj, str):
+                    print(f"DeepSeek OCR: Image already in correct format")
+                    pass
+
+    if images_transformed > 0:
+        print(f"DeepSeek OCR: Transformed {images_transformed} image(s) from OpenAI to DeepSeek format")
+
+    return body
+
 @app.get("/health")
 async def health():
     """Health check endpoint - returns available models"""
@@ -264,6 +356,16 @@ async def chat_completions(request: Request):
 
         if model_id not in MODEL_ENDPOINTS:
             raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+
+        # Transform images for DeepSeek OCR (converts OpenAI format to DeepSeek format)
+        if model_id == "deepseek-ocr":
+            try:
+                body = transform_deepseek_ocr_images(body)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Image transformation error: {str(e)}")
+            except Exception as e:
+                print(f"Unexpected error in image transformation: {e}")
+                raise HTTPException(status_code=500, detail=f"Image processing failed: {str(e)}")
 
         # Select endpoint (with load balancing if multiple endpoints available)
         endpoint, is_pooled = select_endpoint(model_id)
