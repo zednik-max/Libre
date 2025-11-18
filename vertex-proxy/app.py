@@ -572,6 +572,7 @@ async def chat_completions(request: Request):
                     if stream:
                         # Streaming response
                         async def generate():
+                            captured_response = []  # Capture response for DeepSeek OCR debugging
                             try:
                                 async with client.stream(
                                     "POST",
@@ -585,8 +586,26 @@ async def chat_completions(request: Request):
                                         yield f"data: {json.dumps({'error': error_text.decode()})}\n\n"
                                         return
 
+                                    print(f"Request succeeded after {retry_count} total attempt(s)")
+                                    print(f"DEBUG: original_model_id = '{original_model_id}', streaming = True")
+
                                     async for chunk in response.aiter_bytes():
+                                        # Capture response for DeepSeek OCR debugging
+                                        if original_model_id == "deepseek-ocr":
+                                            captured_response.append(chunk)
                                         yield chunk
+
+                                    # Log captured response for DeepSeek OCR
+                                    if original_model_id == "deepseek-ocr" and captured_response:
+                                        try:
+                                            full_response = b''.join(captured_response).decode('utf-8')
+                                            print("=" * 80)
+                                            print("DeepSeek OCR: STREAMING RESPONSE FROM VERTEX AI")
+                                            print(full_response[:3000])
+                                            print("=" * 80)
+                                        except Exception as e:
+                                            print(f"ERROR: Failed to decode streaming response: {e}")
+
                             except Exception as e:
                                 print(f"Streaming error ({region}): {e}")
                                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -595,6 +614,7 @@ async def chat_completions(request: Request):
 
                                 # Cleanup GCS temp files for DeepSeek OCR
                                 if uploaded_blobs:
+                                    print(f"DEBUG: Cleaning up {len(uploaded_blobs)} GCS files (streaming)")
                                     for blob_name in uploaded_blobs:
                                         delete_from_gcs(blob_name)
 
