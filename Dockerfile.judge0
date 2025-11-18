@@ -4,18 +4,21 @@ FROM ghcr.io/danny-avila/librechat:latest
 
 WORKDIR /app
 
-# Copy ONLY backend Judge0 integration files
-# Frontend changes are skipped to avoid build issues
+# Copy backend Judge0 integration files
 COPY api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/languages.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/judge0.js /app/api/server/services/Tools/
 COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
 COPY api/server/controllers/tools.js /app/api/server/controllers/
 
+# Copy custom Vertex AI icon
+COPY client/public/assets/vertex-ai.svg /app/client/public/assets/vertex-ai.svg
+
 # Verify files were copied
 RUN ls -la /app/api/server/services/Tools/ && \
     ls -la /app/api/server/controllers/ && \
-    echo "Judge0 backend files copied successfully"
+    ls -la /app/client/public/assets/ && \
+    echo "Judge0 backend and Vertex AI icon copied successfully"
 
 ENV NODE_ENV=production
 
