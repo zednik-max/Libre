@@ -13,12 +13,14 @@ modelSpecs:
     # Gemini 3.0 - Google's flagship multimodal
     - name: "gemini-3-pro-preview"
       label: "Gemini 3 Pro Preview"
-      description: "Google's flagship model with 1M context - state-of-the-art multimodal reasoning"
+      description: "Google's flagship model with 1M context - state-of-the-art multimodal (Note: Web search not yet supported)"
       showIconInMenu: true
       showIconInHeader: true
       preset:
         endpoint: "google"
         model: "gemini-3-pro-preview"
+        # Disable tools until LibreChat adds Gemini 3 tool calling support
+        tools: []
 
     # DeepSeek R1 - Advanced reasoning
     - name: "deepseek-r1"
