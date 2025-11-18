@@ -201,14 +201,16 @@ def transform_deepseek_ocr_images(body):
     """
     Transform OpenAI image format to DeepSeek OCR format
 
-    DeepSeek OCR on Vertex AI expects a different image format than OpenAI's format.
-    LibreChat sends OpenAI format, so we transform it here.
+    DeepSeek OCR on Vertex AI expects ONLY images, no text prompts.
+    This function:
+    1. Transforms image format from OpenAI to DeepSeek
+    2. REMOVES all text content (DeepSeek OCR doesn't use prompts)
 
     Input (OpenAI format from LibreChat):
-        content: [{
-            type: "image_url",
-            image_url: { url: "data:image/jpeg;base64,..." }
-        }]
+        content: [
+            {type: "text", text: "extract text"},
+            {type: "image_url", image_url: {url: "data:image/jpeg;base64,..."}}
+        ]
 
     Output (DeepSeek OCR format):
         content: [{
@@ -220,13 +222,14 @@ def transform_deepseek_ocr_images(body):
         body: Request body dict containing messages
 
     Returns:
-        Modified body dict with transformed image format
+        Modified body dict with transformed image format and no text
 
     Raises:
         ValueError: If image URL format is unsupported
     """
     messages = body.get("messages", [])
     images_transformed = 0
+    text_removed = 0
 
     for message in messages:
         content = message.get("content")
@@ -235,8 +238,16 @@ def transform_deepseek_ocr_images(body):
         if not isinstance(content, list):
             continue
 
-        # Transform each content item
+        # Filter content: keep only images, remove text
+        new_content = []
+
         for item in content:
+            if item.get("type") == "text":
+                # Remove text content - DeepSeek OCR doesn't use prompts
+                text_removed += 1
+                print(f"DeepSeek OCR: Removed text prompt: '{item.get('text', '')[:50]}...'")
+                continue
+
             if item.get("type") == "image_url":
                 image_url_obj = item.get("image_url")
 
@@ -263,7 +274,7 @@ def transform_deepseek_ocr_images(body):
 
                     # Transform to DeepSeek format (just the URL string)
                     if url.startswith("data:image/"):
-                        # Base64 data URL - extract and pass directly
+                        # Base64 data URL - pass directly
                         item["image_url"] = url
                         images_transformed += 1
                     elif url.startswith("gs://"):
@@ -282,10 +293,16 @@ def transform_deepseek_ocr_images(body):
                 # Already in correct format (string) - no transformation needed
                 elif isinstance(image_url_obj, str):
                     print(f"DeepSeek OCR: Image already in correct format")
-                    pass
+
+                new_content.append(item)
+
+        # Replace content with filtered version (images only, no text)
+        message["content"] = new_content
 
     if images_transformed > 0:
         print(f"DeepSeek OCR: Transformed {images_transformed} image(s) from OpenAI to DeepSeek format")
+    if text_removed > 0:
+        print(f"DeepSeek OCR: Removed {text_removed} text prompt(s) (OCR doesn't use prompts)")
 
     return body
 
