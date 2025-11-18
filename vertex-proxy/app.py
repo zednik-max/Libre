@@ -628,12 +628,20 @@ async def chat_completions(request: Request):
                         await client.aclose()
                         print(f"Request succeeded after {retry_count} total attempt(s)")
 
+                        # Log response for DeepSeek OCR debugging
+                        response_json = response.json()
+                        if model_id == "deepseek-ocr":
+                            print("=" * 80)
+                            print("DeepSeek OCR: RESPONSE FROM VERTEX AI")
+                            print(json.dumps(response_json, indent=2, ensure_ascii=False)[:3000])
+                            print("=" * 80)
+
                         # Cleanup GCS temp files for DeepSeek OCR
                         if uploaded_blobs:
                             for blob_name in uploaded_blobs:
                                 delete_from_gcs(blob_name)
 
-                        return JSONResponse(content=response.json())
+                        return JSONResponse(content=response_json)
 
                 except HTTPException:
                     await client.aclose()
