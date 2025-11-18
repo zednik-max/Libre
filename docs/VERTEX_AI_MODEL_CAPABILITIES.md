@@ -109,7 +109,13 @@ This document lists all Vertex AI Model Garden models configured in LibreChat an
   - ✅ Generation
   - ✅ Recognition
   - ✅ Translation
-- **Notes:** Llama 4 early preview variant
+- **Specialized Strengths (to verify):**
+  - 🚀 Creative problem-solving
+  - 💡 Unconventional approaches
+  - 🎨 Innovation & ideation
+  - ⚡ Novel solutions to complex problems
+  - 🔧 Breaking conventional patterns
+- **Notes:** Llama 4 early preview variant - "Maverick" suggests innovative/creative specialization
 
 ### Llama 4 Scout (`llama-4-scout`)
 - **Model ID:** `meta/llama-4-scout-17b-16e-instruct-maas`
@@ -122,7 +128,14 @@ This document lists all Vertex AI Model Garden models configured in LibreChat an
   - ✅ Generation
   - ✅ Recognition
   - ✅ Translation
-- **Notes:** Llama 4 early preview variant
+- **Specialized Strengths (confirmed):**
+  - 📊 **Technical documentation** - Excellent at structuring technical content
+  - 🔍 **Log analysis** - Strong at interpreting build logs, deployment logs, system logs
+  - 📝 **Content organization** - Creates well-structured markdown with clear hierarchy
+  - 🎯 **Data exploration** - Goes beyond extraction to provide contextual analysis
+  - 🧠 **Analytical reasoning** - Understands technical context and purpose
+- **Notes:** Llama 4 early preview variant - **Confirmed excellent for technical documentation tasks**
+- **Example:** Given Docker build logs, Scout organized them into logical sections (Build → Export → Deployment) with professional markdown formatting
 
 ---
 
