@@ -119,6 +119,15 @@ endpoints:
       titleModel: 'sonar'
       modelDisplayLabel: 'Perplexity'
 
+      # Perplexity doesn't support these OpenAI parameters
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p']
+
+      # Perplexity-specific parameters (optional)
+      # addParams:
+      #   return_citations: true
+      #   return_images: false
+      #   return_related_questions: false
+
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
