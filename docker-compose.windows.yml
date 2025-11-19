@@ -16,6 +16,7 @@ services:
       - "3080:3080"
     depends_on:
       - mongodb
+      - redis
       - rag_api
     environment:
       - HOST=0.0.0.0
@@ -28,6 +29,8 @@ services:
       - .env
     volumes:
       - ./librechat.yaml:/app/librechat.yaml
+      - librechat_files:/app/client/public/files
+      - librechat_images:/app/client/public/images/temp
       # Icons are baked into the image during build (see Dockerfile.judge0)
 
   mongodb:
@@ -37,6 +40,13 @@ services:
     command: mongod --noauth
     volumes:
       - mongodb_data:/data/db
+
+  redis:
+    container_name: chat-redis
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
 
   meilisearch:
     container_name: chat-meilisearch
@@ -85,5 +95,8 @@ services:
 
 volumes:
   mongodb_data:
+  redis_data:
   meilisearch_data:
   pgdata2:
+  librechat_files:
+  librechat_images:
