@@ -14,7 +14,7 @@ modelSpecs:
     - name: "deepseek-r1"
       label: "DeepSeek R1"
       description: "Advanced reasoning model - excels at complex problem solving and deep analysis"
-      iconURL: "/assets/deepseek.svg"
+      iconURL: "/images/deepseek.svg"
       showIconInMenu: true
       showIconInHeader: true
       preset:
@@ -25,7 +25,7 @@ modelSpecs:
     - name: "llama-4-maverick"
       label: "Llama 4 Maverick 17B"
       description: "Early preview - creative problem solving and innovation"
-      iconURL: "/assets/llama.svg"
+      iconURL: "/images/llama.svg"
       showIconInMenu: true
       showIconInHeader: true
       preset:
@@ -36,7 +36,7 @@ modelSpecs:
     - name: "qwen3-thinking"
       label: "Qwen3 Next 80B Thinking"
       description: "Thinking mode - shows detailed reasoning process step-by-step"
-      iconURL: "/assets/qwen.svg"
+      iconURL: "/images/qwen.svg"
       showIconInMenu: true
       showIconInHeader: true
       preset:
@@ -92,7 +92,7 @@ endpoints:
     - name: 'Vertex-AI'
       apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
       baseURL: 'http://vertex-proxy:4000'
-      iconURL: '/assets/vertex-ai.svg'
+      iconURL: '/images/vertex-ai.svg'
 
       models:
         default:
