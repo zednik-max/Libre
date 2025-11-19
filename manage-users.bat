@@ -53,7 +53,7 @@ echo.
 echo WARNING: This will permanently delete the user!
 set /p confirm="Are you sure? (yes/no): "
 if /i "%confirm%"=="yes" (
-    docker exec -it LibreChat npm run delete-user -- --email %email%
+    docker exec -it LibreChat npm run delete-user -- %email%
 ) else (
     echo Cancelled.
 )
