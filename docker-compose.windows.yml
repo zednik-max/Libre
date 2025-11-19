@@ -28,7 +28,7 @@ services:
       - .env
     volumes:
       - ./librechat.yaml:/app/librechat.yaml
-      - ./images:/app/client/public/images
+      - ./client/public/images:/app/client/public/images
 
   mongodb:
     container_name: chat-mongodb
