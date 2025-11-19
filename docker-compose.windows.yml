@@ -29,8 +29,7 @@ services:
       - .env
     volumes:
       - ./librechat.yaml:/app/librechat.yaml
-      - librechat_files:/app/client/public/files
-      - librechat_images:/app/client/public/images/temp
+      - librechat_uploads:/app/uploads
       # Icons are baked into the image during build (see Dockerfile.judge0)
 
   mongodb:
@@ -98,5 +97,4 @@ volumes:
   redis_data:
   meilisearch_data:
   pgdata2:
-  librechat_files:
-  librechat_images:
+  librechat_uploads:
