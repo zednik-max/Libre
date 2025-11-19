@@ -51,7 +51,7 @@ export default function ConvoIcon({
 
   return (
     <>
-      {iconURL && iconURL.includes('http') ? (
+      {iconURL && (iconURL.includes('http') || iconURL.startsWith('/images/')) ? (
         <ConvoIconURL
           iconURL={iconURL}
           modelLabel={conversation?.chatGptLabel ?? conversation?.modelLabel ?? ''}
