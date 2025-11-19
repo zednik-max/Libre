@@ -68,6 +68,22 @@ registration:
   socialLogins: ['github', 'google', 'discord', 'openid']
 
 endpoints:
+  # Agent capabilities configuration - enables artifacts and code execution
+  agents:
+    # Agent Capabilities available to all users
+    # execute_code: Enables Artifacts (React, HTML, Mermaid diagrams)
+    # file_search: Enables RAG/document search
+    # actions: Enables custom actions
+    # tools: Enables tool calling (web search, etc.)
+    capabilities: ["execute_code", "file_search", "actions", "tools"]
+
+    # Recursion limits for agent operations
+    recursionLimit: 50
+    maxRecursionLimit: 100
+
+    # Disable the builder interface if needed
+    disableBuilder: false
+
   custom:
     # GCP Vertex AI Models via Custom OAuth2 Proxy
     - name: 'Vertex-AI'
