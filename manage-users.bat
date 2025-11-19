@@ -65,7 +65,18 @@ goto menu
 echo.
 echo Creating user manually...
 echo.
+set /p email="Enter email for the new user: "
+echo.
 docker exec -it LibreChat npm run create-user
+echo.
+set /p assign_admin="Assign ADMIN role to this user? (yes/no): "
+if /i "%assign_admin%"=="yes" (
+    echo.
+    echo Assigning ADMIN role and verifying email...
+    docker exec -it chat-mongodb mongosh LibreChat --eval "db.users.updateOne({email: '%email%'}, {$set: {role: 'ADMIN', emailVerified: true}})"
+    echo.
+    echo ADMIN role assigned successfully!
+)
 echo.
 pause
 goto menu
