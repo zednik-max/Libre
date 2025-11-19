@@ -28,7 +28,7 @@ services:
       - .env
     volumes:
       - ./librechat.yaml:/app/librechat.yaml
-      - ./client/public/images:/app/client/public/images
+      # Icons are baked into the image during build (see Dockerfile.judge0)
 
   mongodb:
     container_name: chat-mongodb
