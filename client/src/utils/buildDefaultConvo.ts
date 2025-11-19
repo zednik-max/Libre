@@ -83,14 +83,6 @@ const buildDefaultConvo = ({
 
   defaultConvo.tools = lastConversationSetup?.tools ?? lastSelectedTools ?? defaultConvo.tools;
 
-  // Preserve modelSpec fields (iconURL and spec) from preset
-  if (lastConversationSetup?.iconURL) {
-    defaultConvo.iconURL = lastConversationSetup.iconURL;
-  }
-  if (lastConversationSetup?.spec) {
-    defaultConvo.spec = lastConversationSetup.spec;
-  }
-
   return defaultConvo;
 };
 
