@@ -87,12 +87,31 @@ endpoints:
     # Disable the builder interface if needed
     disableBuilder: false
 
+  # Anthropic (Claude) - Enable web search and all capabilities
+  anthropic:
+    # Use API key from .env
+    # Models are auto-fetched or use defaults
+    supportedTools: ["web_search", "file_search", "execute_code"]
+    # Allow all agent capabilities
+    streamUsage: true
+
+  # Google (Gemini) - Enable web search and all capabilities
+  google:
+    # Use API key from .env
+    # Models are auto-fetched or use defaults
+    supportedTools: ["web_search", "file_search", "execute_code"]
+    # Allow all agent capabilities
+    streamUsage: true
+
   custom:
     # GCP Vertex AI Models via Custom OAuth2 Proxy
     - name: 'Vertex-AI'
       apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
       baseURL: 'http://vertex-proxy:4000'
       iconURL: '/images/vertex-ai.svg'
+
+      # Enable web search and all tools
+      supportedTools: ["web_search", "file_search", "execute_code"]
 
       models:
         default:
@@ -141,6 +160,9 @@ endpoints:
       apiKey: '${MISTRAL_API_KEY}'
       baseURL: 'https://api.mistral.ai/v1'
 
+      # Enable web search and all tools
+      supportedTools: ["web_search", "file_search", "execute_code"]
+
       models:
         default:
           - 'mistral-large-latest'
@@ -161,6 +183,9 @@ endpoints:
     - name: 'Perplexity'
       apiKey: '${PERPLEXITY_API_KEY}'
       baseURL: 'https://api.perplexity.ai'
+
+      # Enable web search and all tools (Perplexity has built-in search)
+      supportedTools: ["web_search", "file_search", "execute_code"]
 
       models:
         default:
