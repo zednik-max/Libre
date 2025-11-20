@@ -169,20 +169,19 @@ endpoints:
 # Model Context Protocol (MCP) Servers
 # Extends LibreChat with external tools and capabilities
 mcpServers:
-  # EXA AI Search - Advanced web search, code search, and research capabilities
-  # Get FREE API key at: https://exa.ai
-  # Features: web_search_exa, deep_search_exa, get_code_context_exa, company_research, linkedin_search
-  # Using @199bio fork with enhanced SSE support
-  exa:
-    type: stdio
-    command: npx
-    args:
-      - -y
-      - "@199bio/exa-mcp-server"
-    env:
-      EXA_API_KEY: ${EXA_API_KEY}
-    timeout: 60000  # 1 minute timeout
-    initTimeout: 15000
+  # EXA AI Search - DISABLED (npm packages don't have working executables)
+  # All tested packages fail: exa-mcp-server, @199bio/exa-mcp-server, hosted SSE
+  # TODO: Find working EXA MCP server implementation or wait for official package fix
+  # exa:
+  #   type: stdio
+  #   command: npx
+  #   args:
+  #     - -y
+  #     - "@199bio/exa-mcp-server"
+  #   env:
+  #     EXA_API_KEY: ${EXA_API_KEY}
+  #   timeout: 60000
+  #   initTimeout: 15000
 
   # Serper - Google Search API for real-time search results
   # Get FREE API key at: https://serper.dev (2,500 calls/month free)
