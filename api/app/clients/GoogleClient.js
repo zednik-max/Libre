@@ -97,6 +97,7 @@ const settings = endpointSettings[EModelEndpoint.google];
 const MODEL_CONFIG = {
   // Modern Gemini models (use GenAI SDK)
   'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-2.0-flash-lite': { type: 'genai', capabilities: ['vision'] }, // Does NOT support thinking
   'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
