@@ -143,5 +143,5 @@ helm/**/.values.yaml
 
 # User Config
 gcp-sa-key.json
-Libre*.ps1
+L*.ps1
 

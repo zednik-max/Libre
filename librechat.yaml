@@ -5,6 +5,44 @@ version: 1.3.1
 
 cache: true
 
+# Quick-access shortcuts for 3 SOTA flagship models with friendly names
+modelSpecs:
+  enforce: false      # Don't force modelSpecs - allow normal endpoints too
+  prioritize: false   # Don't auto-select modelSpecs - allow endpoint selection
+  list:
+    # DeepSeek R1 - Advanced reasoning
+    - name: "deepseek-r1"
+      label: "DeepSeek R1"
+      description: "Advanced reasoning model - excels at complex problem solving and deep analysis"
+      iconURL: "/images/deepseek.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "deepseek-r1"
+
+    # Llama 4 Maverick - Creative innovation
+    - name: "llama-4-maverick"
+      label: "Llama 4 Maverick 17B"
+      description: "Early preview - creative problem solving and innovation"
+      iconURL: "/images/llama.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "llama-4-maverick"
+
+    # Qwen3 Thinking - Shows reasoning process
+    - name: "qwen3-thinking"
+      label: "Qwen3 Next 80B Thinking"
+      description: "Thinking mode - shows detailed reasoning process step-by-step"
+      iconURL: "/images/qwen.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "qwen3-thinking"
+
 interface:
   privacyPolicy:
     externalUrl: 'https://librechat.ai/privacy-policy'
@@ -33,24 +71,48 @@ registration:
   socialLogins: ['github', 'google', 'discord', 'openid']
 
 endpoints:
+  # Agent capabilities configuration - enables artifacts and code execution
+  agents:
+    # Agent Capabilities available to all users
+    # execute_code: Enables Artifacts (React, HTML, Mermaid diagrams)
+    # file_search: Enables RAG/document search
+    # actions: Enables custom actions
+    # tools: Enables tool calling (MCP tools, etc.)
+    # web_search: Enables web search capability
+    capabilities: ["execute_code", "file_search", "actions", "tools", "web_search"]
+
+    # Recursion limits for agent operations
+    recursionLimit: 50
+    maxRecursionLimit: 100
+
+    # Disable the builder interface if needed
+    disableBuilder: false
+
   custom:
     # GCP Vertex AI Models via Custom OAuth2 Proxy
     - name: 'Vertex-AI'
       apiKey: 'dummy'  # Not used - authentication handled by vertex-proxy
       baseURL: 'http://vertex-proxy:4000'
-      iconURL: '/assets/vertex-ai.svg'  
+      iconURL: '/images/vertex-ai.svg'
 
       models:
         default:
-          - 'deepseek-r1'
-          - 'deepseek-v3'
-          - 'deepseek-ocr'
-          - 'minimax-m2'
-          - 'qwen3-235b'
-          - 'llama-3.3-70b'
-          - 'qwen3-thinking'
-          - 'llama-4-maverick'
-          - 'llama-4-scout'
+          # Reasoning models
+          - 'deepseek-r1'              # DeepSeek R1 - Advanced reasoning (text-only)
+          - 'qwen3-thinking'           # Qwen3 Next 80B - Thinking mode (text-only)
+
+          # Text generation models
+          - 'deepseek-v3'              # DeepSeek V3 - General purpose (text-only)
+          - 'qwen3-235b'               # Qwen3 235B - Instruct (text-only)
+          - 'minimax-m2'               # Minimax M2 (text-only)
+          - 'llama-3.3-70b'            # Llama 3.3 70B (text-only)
+          - 'llama-4-maverick'         # Llama 4 Maverick 17B (text-only)
+          - 'llama-4-scout'            # Llama 4 Scout 17B (text-only)
+
+          # Vision models (EXPERIMENTAL - test before using)
+          # - 'deepseek-ocr'           # DeepSeek OCR (BROKEN - returns garbage)
+          # - 'qwen3-vl-235b'          # Qwen3-VL 235B (vision+text) - NOT YET CONFIGURED
+
         fetch: false
 
       titleConvo: true
@@ -60,7 +122,22 @@ endpoints:
       # Don't drop parameters - let the proxy handle them
       dropParams: []
 
+      # Vision models configuration (DISABLED until working models confirmed)
+      # Uncomment and test individual models
+      # fileConfig:
+      #   endpoints:
+      #     - 'deepseek-ocr'         # BROKEN - returns hallucinated garbage
+      #     - 'qwen3-vl-235b'        # Test this if available in your region
+      #   supportedMimeTypes:
+      #     - 'image/png'
+      #     - 'image/jpeg'
+      #     - 'image/jpg'
+      #     - 'image/webp'
+      #     - 'image/gif'
+      #   maxFileSize: 20971520  # 20MB
+
     # Mistral AI
+    # Requires MISTRAL_API_KEY in .env
     - name: 'Mistral'
       apiKey: '${MISTRAL_API_KEY}'
       baseURL: 'https://api.mistral.ai/v1'
@@ -71,16 +148,17 @@ endpoints:
           - 'mistral-medium-latest'
           - 'mistral-small-latest'
           - 'codestral-latest'
-        fetch: true
+        fetch: false
 
       titleConvo: true
       titleModel: 'mistral-small-latest'
       modelDisplayLabel: 'Mistral'
 
       # Mistral requires dropping these parameters to avoid 422 errors
-      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p', 'logit_bias']
 
     # Perplexity AI
+    # Requires PERPLEXITY_API_KEY in .env
     - name: 'Perplexity'
       apiKey: '${PERPLEXITY_API_KEY}'
       baseURL: 'https://api.perplexity.ai'
@@ -98,24 +176,37 @@ endpoints:
       titleModel: 'sonar'
       modelDisplayLabel: 'Perplexity'
 
+      # Perplexity doesn't support these OpenAI parameters
+      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty', 'top_p']
+
+      # Perplexity-specific parameters (optional)
+      # addParams:
+      #   return_citations: true
+      #   return_images: false
+      #   return_related_questions: false
+
+  # Google Gemini Configuration
+  # Configured via GOOGLE_KEY and GOOGLE_MODELS in .env
+  google:
+    # Disable thinking/extended_thinking for models that don't support it
+    # This prevents the "thinking is not supported by this model" error
+    dropParams: ['thinking', 'extended_thinking']
+
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
-  # Search Provider: Serper (Google Search API)
+  # Search Provider: SearXNG (NO API KEY NEEDED!)
+  # Self-hosted metasearch engine running in Docker
+  # Both api and searxng containers are on the same Docker network
+  searxngInstanceUrl: 'http://searxng:8080/'
+
+  # Content Scraper: Serper (FREE TIER: 2,500 calls/month)
+  # Sign up at https://serper.dev for API key
   serperApiKey: '${SERPER_API_KEY}'
-  searchProvider: 'serper'
 
-  # Content Scraper: Also using Serper (supports both search and scraping)
-  scraperProvider: 'serper'
-  scraperTimeout: 10000  # 10 seconds timeout
-
-  # Reranker: Jina AI for result ranking and relevance
-  jinaApiKey: '${JINA_API_KEY}'
-  # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
-  rerankerType: 'jina'
-
-  # Safe search level: 0 (off), 1 (moderate), 2 (strict)
-  safeSearch: 1
+  # Optional: Add Jina reranker for better results (requires API key)
+  # jinaApiKey: '${JINA_API_KEY}'
+  # rerankerType: 'jina'
 
 # NOTE: Judge0 Code Execution is integrated directly into the Code Interpreter
 # No MCP configuration needed! Just click the Code Interpreter button and enter your RapidAPI key.
