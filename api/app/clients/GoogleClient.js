@@ -204,6 +204,39 @@ function isModelGardenModel(modelName) {
 }
 
 /**
+ * Check if a model supports thinking/reasoning capability
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model supports thinking
+ */
+function supportsThinking(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].capabilities.includes('thinking');
+  }
+
+  // Fallback: Only specific Gemini models support thinking
+  // gemini-2.0-flash-exp, gemini-1.5-pro (and variants)
+  const thinkingPatterns = [
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro-',
+    'gemini-1.5-pro-002',
+  ];
+
+  for (const pattern of thinkingPatterns) {
+    if (modelName.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Get the publisher/provider for a model
  * @param {string} modelName - The model name
  * @returns {string} - The publisher name
@@ -630,18 +663,25 @@ class GoogleClient extends BaseClient {
     // Unified thinking configuration for both Google GenAI and Vertex AI
     // Google GenAI uses thinkingConfig.thinkingBudget (nested)
     // Vertex AI uses top-level thinkingBudget
-    const thinkingBudgetValue =
-      (this.modelOptions.thinking ?? googleSettings.thinking.default)
-        ? this.modelOptions.thinkingBudget
-        : 0;
+    // IMPORTANT: Only set thinking parameters for models that support it
+    if (supportsThinking(this.modelOptions.model)) {
+      const thinkingBudgetValue =
+        (this.modelOptions.thinking ?? googleSettings.thinking.default)
+          ? this.modelOptions.thinkingBudget
+          : 0;
 
-    // Set nested format for Google GenAI
-    this.modelOptions.thinkingConfig = {
-      thinkingBudget: thinkingBudgetValue,
-    };
+      // Set nested format for Google GenAI
+      this.modelOptions.thinkingConfig = {
+        thinkingBudget: thinkingBudgetValue,
+      };
 
-    // Also set top-level format for Vertex AI
-    this.modelOptions.thinkingBudget = thinkingBudgetValue;
+      // Also set top-level format for Vertex AI
+      this.modelOptions.thinkingBudget = thinkingBudgetValue;
+    } else {
+      // Remove thinking parameters for models that don't support it
+      delete this.modelOptions.thinkingConfig;
+      delete this.modelOptions.thinkingBudget;
+    }
 
     // Clean up the boolean flag
     delete this.modelOptions.thinking;
