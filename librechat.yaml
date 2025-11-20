@@ -88,22 +88,6 @@ endpoints:
     # Disable the builder interface if needed
     disableBuilder: false
 
-  # Anthropic (Claude) - Enable web search and all capabilities
-  anthropic:
-    # Use API key from .env
-    # Models are auto-fetched or use defaults
-    supportedTools: ["web_search", "file_search", "execute_code"]
-    # Allow all agent capabilities
-    streamUsage: true
-
-  # Google (Gemini) - Enable web search and all capabilities
-  google:
-    # Use API key from .env
-    # Models are auto-fetched or use defaults
-    supportedTools: ["web_search", "file_search", "execute_code"]
-    # Allow all agent capabilities
-    streamUsage: true
-
   custom:
     # GCP Vertex AI Models via Custom OAuth2 Proxy
     - name: 'Vertex-AI'
