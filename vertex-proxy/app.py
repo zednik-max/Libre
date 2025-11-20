@@ -570,25 +570,50 @@ async def chat_completions(request: Request):
                     retry_count += 1
 
                     if stream:
-                        # Streaming response
-                        async def generate():
-                            captured_response = []  # Capture response for DeepSeek OCR debugging
-                            try:
-                                async with client.stream(
-                                    "POST",
-                                    current_url,
-                                    json=body,
-                                    headers=headers
-                                ) as response:
-                                    if response.status_code != 200:
-                                        error_text = await response.aread()
-                                        print(f"Error from Vertex AI ({region}): {response.status_code} - {error_text.decode()}")
-                                        yield f"data: {json.dumps({'error': error_text.decode()})}\n\n"
-                                        return
+                        # Streaming response - check status before starting stream
+                        async with client.stream(
+                            "POST",
+                            current_url,
+                            json=body,
+                            headers=headers
+                        ) as response:
+                            if response.status_code != 200:
+                                error_text = await response.aread()
+                                error_msg = f"Error from Vertex AI ({region}): {response.status_code} - {error_text.decode()}"
+                                print(error_msg)
+                                last_error = error_msg
 
-                                    print(f"Request succeeded after {retry_count} total attempt(s)")
-                                    print(f"DEBUG: original_model_id = '{original_model_id}', streaming = True")
+                                # Retry on 429, 503, 500 errors (retryable errors)
+                                if response.status_code in [429, 500, 503]:
+                                    # Try next retry attempt if available
+                                    if retry_attempt < RETRY_CONFIG["max_retries"]:
+                                        continue
 
+                                    # Max retries reached for this endpoint, try next endpoint
+                                    if endpoint_num < len(endpoints_to_try) - 1:
+                                        break  # Break retry loop, continue to next endpoint
+
+                                # Non-retryable error or all retries exhausted
+                                await client.aclose()
+
+                                # Cleanup GCS temp files
+                                if uploaded_blobs:
+                                    print(f"DEBUG: Cleaning up {len(uploaded_blobs)} GCS files (error)")
+                                    for blob_name in uploaded_blobs:
+                                        delete_from_gcs(blob_name)
+
+                                raise HTTPException(
+                                    status_code=response.status_code,
+                                    detail=error_text.decode()
+                                )
+
+                            # Success! Stream the response
+                            print(f"Request succeeded after {retry_count} total attempt(s)")
+                            print(f"DEBUG: original_model_id = '{original_model_id}', streaming = True")
+
+                            async def generate():
+                                captured_response = []  # Capture response for DeepSeek OCR debugging
+                                try:
                                     async for chunk in response.aiter_bytes():
                                         # Capture response for DeepSeek OCR debugging
                                         if original_model_id == "deepseek-ocr":
@@ -606,19 +631,19 @@ async def chat_completions(request: Request):
                                         except Exception as e:
                                             print(f"ERROR: Failed to decode streaming response: {e}")
 
-                            except Exception as e:
-                                print(f"Streaming error ({region}): {e}")
-                                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                            finally:
-                                await client.aclose()
+                                except Exception as e:
+                                    print(f"Streaming error ({region}): {e}")
+                                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                                finally:
+                                    await client.aclose()
 
-                                # Cleanup GCS temp files for DeepSeek OCR
-                                if uploaded_blobs:
-                                    print(f"DEBUG: Cleaning up {len(uploaded_blobs)} GCS files (streaming)")
-                                    for blob_name in uploaded_blobs:
-                                        delete_from_gcs(blob_name)
+                                    # Cleanup GCS temp files for DeepSeek OCR
+                                    if uploaded_blobs:
+                                        print(f"DEBUG: Cleaning up {len(uploaded_blobs)} GCS files (streaming)")
+                                        for blob_name in uploaded_blobs:
+                                            delete_from_gcs(blob_name)
 
-                        return StreamingResponse(generate(), media_type="text/event-stream")
+                            return StreamingResponse(generate(), media_type="text/event-stream")
                     else:
                         # Non-streaming response
                         response = await client.post(
