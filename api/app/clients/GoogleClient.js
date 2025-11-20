@@ -96,7 +96,13 @@ const settings = endpointSettings[EModelEndpoint.google];
  */
 const MODEL_CONFIG = {
   // Modern Gemini models (use GenAI SDK)
+  'gemini-3-pro-preview': { type: 'genai', capabilities: ['vision'] },
+  'gemini-2.5-pro': { type: 'genai', capabilities: ['vision'] },
+  'gemini-2.5-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-2.5-flash-lite': { type: 'genai', capabilities: ['vision'] },
   'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-2.0-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-2.0-flash-lite': { type: 'genai', capabilities: ['vision'] },
   'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
@@ -628,20 +634,26 @@ class GoogleClient extends BaseClient {
     }
 
     // Unified thinking configuration for both Google GenAI and Vertex AI
-    // Google GenAI uses thinkingConfig.thinkingBudget (nested)
-    // Vertex AI uses top-level thinkingBudget
-    const thinkingBudgetValue =
-      (this.modelOptions.thinking ?? googleSettings.thinking.default)
-        ? this.modelOptions.thinkingBudget
-        : 0;
+    // ONLY set thinking parameters if the model supports it
+    const modelConfig = MODEL_CONFIG[this.modelOptions.model];
+    const supportsThinking = modelConfig?.capabilities?.includes('thinking') ?? false;
 
-    // Set nested format for Google GenAI
-    this.modelOptions.thinkingConfig = {
-      thinkingBudget: thinkingBudgetValue,
-    };
+    if (supportsThinking) {
+      // Google GenAI uses thinkingConfig.thinkingBudget (nested)
+      // Vertex AI uses top-level thinkingBudget
+      const thinkingBudgetValue =
+        (this.modelOptions.thinking ?? googleSettings.thinking.default)
+          ? this.modelOptions.thinkingBudget
+          : 0;
 
-    // Also set top-level format for Vertex AI
-    this.modelOptions.thinkingBudget = thinkingBudgetValue;
+      // Set nested format for Google GenAI
+      this.modelOptions.thinkingConfig = {
+        thinkingBudget: thinkingBudgetValue,
+      };
+
+      // Also set top-level format for Vertex AI
+      this.modelOptions.thinkingBudget = thinkingBudgetValue;
+    }
 
     // Clean up the boolean flag
     delete this.modelOptions.thinking;
