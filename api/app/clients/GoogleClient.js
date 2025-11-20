@@ -666,7 +666,12 @@ class GoogleClient extends BaseClient {
     // Google GenAI uses thinkingConfig.thinkingBudget (nested)
     // Vertex AI uses top-level thinkingBudget
     // IMPORTANT: Only set thinking parameters for models that support it
-    if (supportsThinking(this.modelOptions.model)) {
+    const modelSupportsThinking = supportsThinking(this.modelOptions.model);
+    logger.info(
+      `[GoogleClient] Model: ${this.modelOptions.model}, Supports Thinking: ${modelSupportsThinking}`,
+    );
+
+    if (modelSupportsThinking) {
       const thinkingBudgetValue =
         (this.modelOptions.thinking ?? googleSettings.thinking.default)
           ? this.modelOptions.thinkingBudget
@@ -679,10 +684,12 @@ class GoogleClient extends BaseClient {
 
       // Also set top-level format for Vertex AI
       this.modelOptions.thinkingBudget = thinkingBudgetValue;
+      logger.info('[GoogleClient] Thinking parameters SET');
     } else {
       // Remove thinking parameters for models that don't support it
       delete this.modelOptions.thinkingConfig;
       delete this.modelOptions.thinkingBudget;
+      logger.info('[GoogleClient] Thinking parameters REMOVED');
     }
 
     // Clean up the boolean flag
