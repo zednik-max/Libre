@@ -50,6 +50,66 @@ function getValidatedLocation(): string {
   return 'us-central1';
 }
 
+/**
+ * Model configuration for Google/Vertex AI models
+ * Defines capabilities including thinking support
+ */
+const MODEL_CONFIG: Record<string, { type: string; capabilities: string[] }> = {
+  // Modern Gemini models with thinking support
+  'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
+
+  // Modern Gemini models WITHOUT thinking support
+  'gemini-2.0-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-2.0-flash-lite': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash': { type: 'genai', capabilities: ['vision'] },
+  'gemini-1.5-flash-8b': { type: 'genai', capabilities: ['vision'] },
+  'learnlm-1.5-pro-experimental': { type: 'genai', capabilities: ['vision'] },
+  'gemma-2-9b-it': { type: 'genai', capabilities: [] },
+  'gemma-2-27b-it': { type: 'genai', capabilities: [] },
+
+  // Legacy models
+  'gemini-1.0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-1.0-pro-latest': { type: 'legacy', capabilities: [] },
+  'gemini-1-0-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro': { type: 'legacy', capabilities: [] },
+  'gemini-pro-vision': { type: 'legacy', capabilities: ['vision'] },
+};
+
+/**
+ * Check if a model supports thinking/reasoning capability
+ * @param modelName - The model name to check
+ * @returns True if model supports thinking
+ */
+function supportsThinking(modelName: string | undefined): boolean {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].capabilities.includes('thinking');
+  }
+
+  // Fallback: Only specific Gemini models support thinking
+  const thinkingPatterns = [
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro-',
+    'gemini-1.5-pro-002',
+  ];
+
+  for (const pattern of thinkingPatterns) {
+    if (modelName.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** Known Google/Vertex AI parameters that map directly to the client config */
 export const knownGoogleParams = new Set([
   'model',
@@ -235,19 +295,34 @@ export function getGoogleConfig(
     );
   }
 
+  // Check if model supports thinking before enabling it
+  const modelSupportsThinking = supportsThinking(llmConfig.model);
   const shouldEnableThinking =
-    thinking && thinkingBudget != null && (thinkingBudget > 0 || thinkingBudget === -1);
+    modelSupportsThinking &&
+    thinking &&
+    thinkingBudget != null &&
+    (thinkingBudget > 0 || thinkingBudget === -1);
+
+  logger.info(
+    `[GoogleConfig] Model: ${llmConfig.model}, Supports Thinking: ${modelSupportsThinking}, Should Enable: ${shouldEnableThinking}`,
+  );
 
   if (shouldEnableThinking && provider === Providers.GOOGLE) {
     (llmConfig as GoogleClientOptions).thinkingConfig = {
       thinkingBudget: thinking ? thinkingBudget : googleSettings.thinkingBudget.default,
       includeThoughts: Boolean(thinking),
     };
+    logger.info('[GoogleConfig] Thinking parameters SET for Google GenAI');
   } else if (shouldEnableThinking && provider === Providers.VERTEXAI) {
     (llmConfig as VertexAIClientOptions).thinkingBudget = thinking
       ? thinkingBudget
       : googleSettings.thinkingBudget.default;
     (llmConfig as VertexAIClientOptions).includeThoughts = Boolean(thinking);
+    logger.info('[GoogleConfig] Thinking parameters SET for Vertex AI');
+  } else if (!modelSupportsThinking && (thinking || thinkingBudget)) {
+    logger.info(
+      `[GoogleConfig] Thinking parameters NOT set - model ${llmConfig.model} does not support thinking`,
+    );
   }
 
   /*

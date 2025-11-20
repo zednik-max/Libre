@@ -40,6 +40,7 @@ import translationUk from './uk/translation.json';
 import translationBs from './bs/translation.json';
 import translationNb from './nb/translation.json';
 import translationSl from './sl/translation.json';
+import translationSk from './sk/translation.json';
 
 export const defaultNS = 'translation';
 
@@ -80,6 +81,7 @@ export const resources = {
   fi: { translation: translationFi },
   bo: { translation: translationBo },
   sl: { translation: translationSl },
+  sk: { translation: translationSk },
   uk: { translation: translationUk },
 } as const;
 

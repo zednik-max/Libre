@@ -97,6 +97,8 @@ const settings = endpointSettings[EModelEndpoint.google];
 const MODEL_CONFIG = {
   // Modern Gemini models (use GenAI SDK)
   'gemini-2.0-flash-exp': { type: 'genai', capabilities: ['vision', 'thinking'] },
+  'gemini-2.0-flash': { type: 'genai', capabilities: ['vision'] }, // Stable version - does NOT support thinking
+  'gemini-2.0-flash-lite': { type: 'genai', capabilities: ['vision'] }, // Lite version - does NOT support thinking
   'gemini-1.5-pro-latest': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-pro': { type: 'genai', capabilities: ['vision', 'thinking'] },
   'gemini-1.5-flash-latest': { type: 'genai', capabilities: ['vision'] },
@@ -196,6 +198,39 @@ function isModelGardenModel(modelName) {
   // or just the publisher prefix
   for (const publisher of MODEL_GARDEN_PUBLISHERS) {
     if (modelName.startsWith(`publishers/${publisher}`) || modelName.startsWith(publisher)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a model supports thinking/reasoning capability
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} - True if model supports thinking
+ */
+function supportsThinking(modelName) {
+  if (!modelName) {
+    return false;
+  }
+
+  // Check exact match in config
+  if (MODEL_CONFIG[modelName]) {
+    return MODEL_CONFIG[modelName].capabilities.includes('thinking');
+  }
+
+  // Fallback: Only specific Gemini models support thinking
+  // gemini-2.0-flash-exp, gemini-1.5-pro (and variants)
+  const thinkingPatterns = [
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro-',
+    'gemini-1.5-pro-002',
+  ];
+
+  for (const pattern of thinkingPatterns) {
+    if (modelName.includes(pattern)) {
       return true;
     }
   }
@@ -630,18 +665,32 @@ class GoogleClient extends BaseClient {
     // Unified thinking configuration for both Google GenAI and Vertex AI
     // Google GenAI uses thinkingConfig.thinkingBudget (nested)
     // Vertex AI uses top-level thinkingBudget
-    const thinkingBudgetValue =
-      (this.modelOptions.thinking ?? googleSettings.thinking.default)
-        ? this.modelOptions.thinkingBudget
-        : 0;
+    // IMPORTANT: Only set thinking parameters for models that support it
+    const modelSupportsThinking = supportsThinking(this.modelOptions.model);
+    logger.info(
+      `[GoogleClient] Model: ${this.modelOptions.model}, Supports Thinking: ${modelSupportsThinking}`,
+    );
 
-    // Set nested format for Google GenAI
-    this.modelOptions.thinkingConfig = {
-      thinkingBudget: thinkingBudgetValue,
-    };
+    if (modelSupportsThinking) {
+      const thinkingBudgetValue =
+        (this.modelOptions.thinking ?? googleSettings.thinking.default)
+          ? this.modelOptions.thinkingBudget
+          : 0;
 
-    // Also set top-level format for Vertex AI
-    this.modelOptions.thinkingBudget = thinkingBudgetValue;
+      // Set nested format for Google GenAI
+      this.modelOptions.thinkingConfig = {
+        thinkingBudget: thinkingBudgetValue,
+      };
+
+      // Also set top-level format for Vertex AI
+      this.modelOptions.thinkingBudget = thinkingBudgetValue;
+      logger.info('[GoogleClient] Thinking parameters SET');
+    } else {
+      // Remove thinking parameters for models that don't support it
+      delete this.modelOptions.thinkingConfig;
+      delete this.modelOptions.thinkingBudget;
+      logger.info('[GoogleClient] Thinking parameters REMOVED');
+    }
 
     // Clean up the boolean flag
     delete this.modelOptions.thinking;

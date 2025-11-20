@@ -1,29 +1,29 @@
 # Custom LibreChat image with Judge0 Code Interpreter integration
-FROM ghcr.io/danny-avila/librechat-dev:latest
+# Uses production image as base - frontend is pre-built and working
+FROM ghcr.io/danny-avila/librechat:latest
 
-# Copy Judge0 integration files
+WORKDIR /app
+
+# Copy backend Judge0 integration files
 COPY api/server/services/Tools/judge0-client.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/languages.js /app/api/server/services/Tools/
 COPY api/server/services/Tools/judge0.js /app/api/server/services/Tools/
 COPY api/app/clients/tools/util/handleTools.js /app/api/app/clients/tools/util/
-
-# Copy updated backend controller (CODE_API_KEY fix)
 COPY api/server/controllers/tools.js /app/api/server/controllers/
 
-# Copy updated frontend files
-COPY client/src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx /app/client/src/components/SidePanel/Agents/Code/
-COPY client/src/hooks/Plugins/useAuthCodeTool.ts /app/client/src/hooks/Plugins/
-COPY client/src/hooks/Plugins/useToolToggle.ts /app/client/src/hooks/Plugins/
+# Copy model icons to the DIST images folder (where frontend serves from)
+RUN mkdir -p /app/client/dist/images
+COPY client/public/images/vertex-ai.svg /app/client/dist/images/vertex-ai.svg
+COPY client/public/images/deepseek.svg /app/client/dist/images/deepseek.svg
+COPY client/public/images/llama.svg /app/client/dist/images/llama.svg
+COPY client/public/images/qwen.svg /app/client/dist/images/qwen.svg
 
-# Install dev dependencies needed for building
-WORKDIR /app
-RUN npm install --include=dev
+# Verify files were copied
+RUN ls -la /app/api/server/services/Tools/ && \
+    ls -la /app/api/server/controllers/ && \
+    ls -la /app/client/dist/images/ && \
+    echo "Judge0 backend and model icons copied successfully"
 
-# Rebuild packages and frontend
-RUN npm run build:packages && npm run frontend
-
-# Set back to production mode
 ENV NODE_ENV=production
 
-WORKDIR /app
 CMD ["npm", "run", "backend"]
