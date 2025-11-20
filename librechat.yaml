@@ -172,10 +172,15 @@ mcpServers:
   # EXA AI Search - Advanced web search, code search, and research capabilities
   # Get FREE API key at: https://exa.ai
   # Features: web_search_exa, deep_search_exa, get_code_context_exa, company_research, linkedin_search
-  # Using Exa's hosted MCP server (HTTP/SSE transport)
+  # Using @199bio fork with enhanced SSE support
   exa:
-    type: sse
-    url: "https://mcp.exa.ai/mcp?exaApiKey=${EXA_API_KEY}"
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@199bio/exa-mcp-server"
+    env:
+      EXA_API_KEY: ${EXA_API_KEY}
     timeout: 60000  # 1 minute timeout
     initTimeout: 15000
 
