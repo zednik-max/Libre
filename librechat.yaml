@@ -185,6 +185,13 @@ endpoints:
       #   return_images: false
       #   return_related_questions: false
 
+  # Google Gemini Configuration
+  # Configured via GOOGLE_KEY and GOOGLE_MODELS in .env
+  google:
+    # Disable thinking/extended_thinking for models that don't support it
+    # This prevents the "thinking is not supported by this model" error
+    dropParams: ['thinking', 'extended_thinking']
+
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
