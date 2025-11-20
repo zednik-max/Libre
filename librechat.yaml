@@ -126,3 +126,30 @@ webSearch:
 # NOTE: Judge0 Code Execution is integrated directly into the Code Interpreter
 # No MCP configuration needed! Just click the Code Interpreter button and enter your RapidAPI key.
 # Get FREE RapidAPI key: https://rapidapi.com/judge0-official/api/judge0-ce
+
+# Model Context Protocol (MCP) Servers
+# Extends LibreChat with external tools and capabilities
+mcpServers:
+  # EXA AI Search - Advanced web search, code search, and research capabilities
+  # Get FREE API key at: https://exa.ai
+  # Features: web_search_exa, deep_search_exa, get_code_context_exa, company_research, linkedin_search
+  exa:
+    command: npx
+    args:
+      - -y
+      - exa-mcp-server
+    env:
+      EXA_API_KEY: ${EXA_API_KEY}
+    timeout: 60000  # 1 minute timeout
+
+  # Serper - Google Search API for real-time search results
+  # Get FREE API key at: https://serper.dev (2,500 calls/month free)
+  # Features: Google search with filters, news search, image search
+  serper:
+    command: npx
+    args:
+      - -y
+      - "@garylab/serper-mcp-server"
+    env:
+      SERPER_API_KEY: ${SERPER_API_KEY}
+    timeout: 30000  # 30 seconds timeout
