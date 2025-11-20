@@ -200,16 +200,14 @@ webSearch:
   searchProvider: 'searxng'
   searxngUrl: 'http://searxng:8080'
 
-  # Content Scraper: FireCrawl (default, no API key needed for basic use)
-  scraperProvider: 'firecrawl'
+  # Content Scraper: Serper (FREE TIER: 2,500 calls/month)
+  # Sign up at https://serper.dev for API key
+  scraperProvider: 'serper'
+  serperApiKey: '${SERPER_API_KEY}'
   scraperTimeout: 10000  # 10 seconds timeout
 
   # Safe search level: 0 (off), 1 (moderate), 2 (strict)
   safeSearch: 1
-
-  # Optional: Upgrade to Serper later for better results (requires API key)
-  # serperApiKey: '${SERPER_API_KEY}'
-  # searchProvider: 'serper'
 
   # Optional: Add Jina reranker for better results (requires API key)
   # jinaApiKey: '${JINA_API_KEY}'
