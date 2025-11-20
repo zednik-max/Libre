@@ -95,9 +95,6 @@ endpoints:
       baseURL: 'http://vertex-proxy:4000'
       iconURL: '/images/vertex-ai.svg'
 
-      # Enable web search and all tools
-      supportedTools: ["web_search", "file_search", "execute_code"]
-
       models:
         default:
           # Reasoning models
@@ -145,9 +142,6 @@ endpoints:
       apiKey: '${MISTRAL_API_KEY}'
       baseURL: 'https://api.mistral.ai/v1'
 
-      # Enable web search and all tools
-      supportedTools: ["web_search", "file_search", "execute_code"]
-
       models:
         default:
           - 'mistral-large-latest'
@@ -168,9 +162,6 @@ endpoints:
     - name: 'Perplexity'
       apiKey: '${PERPLEXITY_API_KEY}'
       baseURL: 'https://api.perplexity.ai'
-
-      # Enable web search and all tools (Perplexity has built-in search)
-      supportedTools: ["web_search", "file_search", "execute_code"]
 
       models:
         default:
