@@ -77,8 +77,9 @@ endpoints:
     # execute_code: Enables Artifacts (React, HTML, Mermaid diagrams)
     # file_search: Enables RAG/document search
     # actions: Enables custom actions
-    # tools: Enables tool calling (web search, etc.)
-    capabilities: ["execute_code", "file_search", "actions", "tools"]
+    # tools: Enables tool calling (MCP tools, etc.)
+    # web_search: Enables web search capability
+    capabilities: ["execute_code", "file_search", "actions", "tools", "web_search"]
 
     # Recursion limits for agent operations
     recursionLimit: 50
