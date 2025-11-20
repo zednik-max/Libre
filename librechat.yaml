@@ -212,21 +212,24 @@ endpoints:
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
-  # Search Provider: Serper (Google Search API)
-  serperApiKey: '${SERPER_API_KEY}'
-  searchProvider: 'serper'
+  # Search Provider: DuckDuckGo (NO API KEY NEEDED!)
+  # FREE, instant setup, works immediately
+  searchProvider: 'duckduckgo'
 
-  # Content Scraper: Also using Serper (supports both search and scraping)
-  scraperProvider: 'serper'
+  # Content Scraper: FireCrawl (default, no API key needed for basic use)
+  scraperProvider: 'firecrawl'
   scraperTimeout: 10000  # 10 seconds timeout
-
-  # Reranker: Jina AI for result ranking and relevance
-  jinaApiKey: '${JINA_API_KEY}'
-  # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
-  rerankerType: 'jina'
 
   # Safe search level: 0 (off), 1 (moderate), 2 (strict)
   safeSearch: 1
+
+  # Optional: Upgrade to Serper later for better results (requires API key)
+  # serperApiKey: '${SERPER_API_KEY}'
+  # searchProvider: 'serper'
+
+  # Optional: Add Jina reranker for better results (requires API key)
+  # jinaApiKey: '${JINA_API_KEY}'
+  # rerankerType: 'jina'
 
 # NOTE: Judge0 Code Execution is integrated directly into the Code Interpreter
 # No MCP configuration needed! Just click the Code Interpreter button and enter your RapidAPI key.
