@@ -172,16 +172,12 @@ mcpServers:
   # EXA AI Search - Advanced web search, code search, and research capabilities
   # Get FREE API key at: https://exa.ai
   # Features: web_search_exa, deep_search_exa, get_code_context_exa, company_research, linkedin_search
+  # Using Exa's hosted MCP server (HTTP/SSE transport)
   exa:
-    type: stdio
-    command: npx
-    args:
-      - -y
-      - exa-mcp-server
-    env:
-      EXA_API_KEY: ${EXA_API_KEY}
+    type: sse
+    url: "https://mcp.exa.ai/mcp?exaApiKey=${EXA_API_KEY}"
     timeout: 60000  # 1 minute timeout
-    initTimeout: 10000
+    initTimeout: 15000
 
   # Serper - Google Search API for real-time search results
   # Get FREE API key at: https://serper.dev (2,500 calls/month free)
