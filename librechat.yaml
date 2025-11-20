@@ -188,7 +188,7 @@ mcpServers:
     command: sh
     args:
       - -c
-      - npx -y @garylab/serper-mcp-server
+      - npx -y serper-search-scrape-mcp-server
     env:
       SERPER_API_KEY: ${SERPER_API_KEY}
     timeout: 30000  # 30 seconds timeout
