@@ -173,22 +173,26 @@ mcpServers:
   # Get FREE API key at: https://exa.ai
   # Features: web_search_exa, deep_search_exa, get_code_context_exa, company_research, linkedin_search
   exa:
-    command: sh
+    type: stdio
+    command: npx
     args:
-      - -c
-      - npx -y exa-mcp-server
+      - -y
+      - exa-mcp-server
     env:
       EXA_API_KEY: ${EXA_API_KEY}
     timeout: 60000  # 1 minute timeout
+    initTimeout: 10000
 
   # Serper - Google Search API for real-time search results
   # Get FREE API key at: https://serper.dev (2,500 calls/month free)
   # Features: Google search with filters, news search, image search
   serper:
-    command: sh
+    type: stdio
+    command: npx
     args:
-      - -c
-      - npx -y serper-search-scrape-mcp-server
+      - -y
+      - serper-search-scrape-mcp-server
     env:
       SERPER_API_KEY: ${SERPER_API_KEY}
     timeout: 30000  # 30 seconds timeout
+    initTimeout: 10000
