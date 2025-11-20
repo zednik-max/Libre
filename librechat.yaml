@@ -101,7 +101,13 @@ endpoints:
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
-  # Search Provider: Serper (Google Search API)
+  # Search Provider: SearXNG (NO API KEY NEEDED!)
+  # Self-hosted metasearch engine running in Docker
+  # Both api and searxng containers are on the same Docker network
+  searxngInstanceUrl: '${SEARXNG_URL}'
+
+  # Content Scraper: Serper (FREE TIER: 2,500 calls/month)
+  # Sign up at https://serper.dev for API key
   serperApiKey: '${SERPER_API_KEY}'
   searchProvider: 'serper'
 
