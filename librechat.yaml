@@ -197,17 +197,11 @@ endpoints:
 webSearch:
   # Search Provider: SearXNG (NO API KEY NEEDED!)
   # Self-hosted metasearch engine running in Docker
-  searchProvider: 'searxng'
-  searxngUrl: 'http://searxng:8080'
+  searxngInstanceUrl: 'http://searxng:8080'
 
   # Content Scraper: Serper (FREE TIER: 2,500 calls/month)
   # Sign up at https://serper.dev for API key
-  scraperProvider: 'serper'
   serperApiKey: '${SERPER_API_KEY}'
-  scraperTimeout: 10000  # 10 seconds timeout
-
-  # Safe search level: 0 (off), 1 (moderate), 2 (strict)
-  safeSearch: 1
 
   # Optional: Add Jina reranker for better results (requires API key)
   # jinaApiKey: '${JINA_API_KEY}'
