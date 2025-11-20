@@ -5,6 +5,45 @@ version: 1.3.1
 
 cache: true
 
+# Model Specs - Quick Access to SOTA Models
+# These appear as individual items in the model selector for instant access
+modelSpecs:
+  enforce: false      # Don't force modelSpecs - allow normal endpoints too
+  prioritize: false   # Don't auto-select modelSpecs - allow endpoint selection
+  list:
+    # DeepSeek R1 - Advanced reasoning
+    - name: "deepseek-r1"
+      label: "DeepSeek R1"
+      description: "Advanced reasoning model - excels at complex problem solving and deep analysis"
+      iconURL: "/assets/deepseek.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "deepseek-r1"
+
+    # Qwen3 Thinking - Shows reasoning process
+    - name: "qwen3-thinking"
+      label: "Qwen3 Next 80B Thinking"
+      description: "Thinking mode - shows detailed reasoning process step-by-step"
+      iconURL: "/assets/qwen.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "qwen3-thinking"
+
+    # Llama 4 Maverick - Creative innovation
+    - name: "llama-4-maverick"
+      label: "Llama 4 Maverick 17B"
+      description: "Early preview - creative problem solving and innovation"
+      iconURL: "/assets/llama.svg"
+      showIconInMenu: true
+      showIconInHeader: true
+      preset:
+        endpoint: "Vertex-AI"
+        model: "llama-4-maverick"
+
 interface:
   privacyPolicy:
     externalUrl: 'https://librechat.ai/privacy-policy'
