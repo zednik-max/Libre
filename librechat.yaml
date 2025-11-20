@@ -188,9 +188,10 @@ endpoints:
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
-  # Search Provider: DuckDuckGo (NO API KEY NEEDED!)
-  # FREE, instant setup, works immediately
-  searchProvider: 'duckduckgo'
+  # Search Provider: SearXNG (NO API KEY NEEDED!)
+  # Self-hosted metasearch engine running in Docker
+  searchProvider: 'searxng'
+  searxngUrl: 'http://searxng:8080'
 
   # Content Scraper: FireCrawl (default, no API key needed for basic use)
   scraperProvider: 'firecrawl'

@@ -92,9 +92,22 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-sa-key.json
     restart: unless-stopped
 
+  # SearXNG - Self-hosted metasearch (NO API KEYS NEEDED!)
+  searxng:
+    container_name: searxng
+    image: searxng/searxng:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng_data:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+
 volumes:
   mongodb_data:
   redis_data:
   meilisearch_data:
   pgdata2:
   librechat_uploads:
+  searxng_data:
