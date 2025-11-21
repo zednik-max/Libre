@@ -14,7 +14,6 @@ LibreChat is an open-source, all-in-one AI chat platform (v0.8.1-rc1) that integ
 - **Monorepo**: npm workspaces with 4 shared packages
 
 **Repository**: https://github.com/danny-avila/LibreChat
-**Branch**: `claude/claude-md-mhxw176ffakjbgor-015kDZD3BZQQUpb3R4pHVTGD`
 
 ---
 
@@ -407,6 +406,26 @@ endpoints:
       models:
         default: ['sonar', 'sonar-pro', ...]
 
+    - name: 'OpenRouter'
+      apiKey: '${OPENROUTER_KEY}'
+      baseURL: 'https://openrouter.ai/api/v1'
+      models:
+        default: ['google/gemma-3-4b-it:free', ...]
+        fetch: true
+
+    - name: 'HuggingFace'
+      apiKey: '${HUGGINGFACE_TOKEN}'
+      baseURL: 'https://router.huggingface.co/v1'
+      models:
+        default: ['meta-llama/Llama-3.2-3B-Instruct:together', ...]
+        fetch: false  # Requires :provider suffix
+
+    - name: 'Z.ai'
+      apiKey: '${ZAI_API_KEY}'
+      baseURL: 'https://api.z.ai/api/coding/paas/v4'
+      models:
+        default: ['GLM-4.5', 'GLM-4.5-Air', 'GLM-4.6']
+
 webSearch:
   serperApiKey: '${SERPER_API_KEY}'
   searchProvider: 'serper'
@@ -453,9 +472,7 @@ docker build -f Dockerfile.judge0 -t librechat-judge0:latest .
 
 ### Branch Strategy
 - `main` - Production-ready code
-- Feature branches - `claude/claude-md-{session-id}` pattern
-
-**Current branch**: `claude/claude-md-mhxw176ffakjbgor-015kDZD3BZQQUpb3R4pHVTGD`
+- Feature branches - `claude/{feature-name}-{session-id}` pattern
 
 ### Commit Conventions
 ```bash
@@ -484,7 +501,7 @@ git add .
 git commit -m "feat: Add comprehensive agent documentation"
 
 # Push to current branch
-git push -u origin claude/claude-md-mhxw176ffakjbgor-015kDZD3BZQQUpb3R4pHVTGD
+git push -u origin <current-branch>
 ```
 
 ---
