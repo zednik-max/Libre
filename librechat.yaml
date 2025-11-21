@@ -162,10 +162,7 @@ endpoints:
       baseURL: 'https://api-inference.huggingface.co/v1'
 
       models:
-        default:
-          - 'meta-llama/Llama-3.2-3B-Instruct'
-          - 'mistralai/Mistral-7B-Instruct-v0.3'
-          - 'Qwen/Qwen2.5-72B-Instruct'
+        default: []
         fetch: true
 
       titleConvo: true
