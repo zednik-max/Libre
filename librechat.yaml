@@ -172,7 +172,7 @@ endpoints:
     # Z.ai (Zhipu AI) - GLM models
     - name: 'Z.ai'
       apiKey: '${ZAI_API_KEY}'
-      baseURL: 'https://api.z.ai/api/paas/v4'
+      baseURL: 'https://api.z.ai/v1'
 
       models:
         default:
