@@ -1,7 +1,7 @@
 # LibreChat Configuration for GCP Vertex AI Model Garden + Judge0 Code Interpreter
 # Judge0 integration is built-in to Code Interpreter (no MCP needed)
 
-version: 1.3.1
+version: 1.2.1
 
 cache: true
 
@@ -195,21 +195,21 @@ endpoints:
           - '.*deprecated.*'
           - 'old-model-.*'
 
-    # Z.ai (Zhipu AI) - GLM models - TEMPORARILY DISABLED
-    # - name: 'Z.ai'
-    #   apiKey: '${ZAI_API_KEY}'
-    #   baseURL: 'https://api.z.ai/api/paas/v4'
-    #
-    #   models:
-    #     default:
-    #       - 'GLM-4.5'
-    #       - 'GLM-4.5-Air'
-    #       - 'GLM-4.6'
-    #     fetch: true
-    #
-    #   titleConvo: true
-    #   titleModel: 'GLM-4.5-Air'
-    #   modelDisplayLabel: 'Z.ai'
+    # Z.ai (Zhipu AI) - GLM models
+    - name: 'Z.ai'
+      apiKey: '${ZAI_API_KEY}'
+      baseURL: 'https://api.z.ai/api/paas/v4'
+
+      models:
+        default:
+          - 'GLM-4.5'
+          - 'GLM-4.5-Air'
+          - 'GLM-4.6'
+        fetch: true
+
+      titleConvo: true
+      titleModel: 'GLM-4.5-Air'
+      modelDisplayLabel: 'Z.ai'
 
 # Web Search Configuration
 # Enables web search capabilities for AI agents
