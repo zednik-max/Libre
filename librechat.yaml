@@ -137,6 +137,25 @@ endpoints:
       titleModel: 'sonar'
       modelDisplayLabel: 'Perplexity'
 
+    # OpenRouter - Access to many models via single API
+    - name: 'OpenRouter'
+      apiKey: '${OPENROUTER_KEY}'
+      baseURL: 'https://openrouter.ai/api/v1'
+
+      models:
+        default:
+          - 'google/gemma-3-4b-it:free'
+          - 'meta-llama/llama-3.2-3b-instruct:free'
+          - 'mistralai/mistral-7b-instruct:free'
+          - 'deepseek/deepseek-chat-v3-0324:free'
+        fetch: true
+
+      titleConvo: true
+      titleModel: 'google/gemma-3-4b-it:free'
+      modelDisplayLabel: 'OpenRouter'
+
+      dropParams: ['stop']
+
 # Web Search Configuration
 # Enables web search capabilities for AI agents
 webSearch:
