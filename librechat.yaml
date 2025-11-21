@@ -156,7 +156,7 @@ webSearch:
 
   # Reranker: Jina AI for result ranking and relevance
   jinaApiKey: '${JINA_API_KEY}'
-  # jinaApiUrl: '${JINA_API_URL}'  # Optional - uncomment if using custom Jina endpoint
+  jinaApiUrl: '${JINA_API_URL}'  # Jina API endpoint for embeddings and reranking
   rerankerType: 'jina'
 
   # Safe search level: 0 (off), 1 (moderate), 2 (strict)
