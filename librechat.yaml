@@ -158,6 +158,13 @@ endpoints:
         - 'google/gemma-3-4b-it:free'
         - 'deepseek/deepseek-chat-v3-0324:free'
         - 'meta-llama/llama-3.2-3b-instruct:free'
+      modelFilterOptions:
+        exclude:
+          - '.*gpt.*'
+          - '.*gemini.*'
+          - '.*claude.*'
+          - 'openai/.*'
+          - 'anthropic/.*'
 
     # HuggingFace Inference API
     - name: 'HuggingFace'
