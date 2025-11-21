@@ -161,7 +161,8 @@ endpoints:
       baseURL: 'https://api-inference.huggingface.co/v1'
 
       models:
-        default: []
+        default:
+          - 'meta-llama/Llama-3.2-3B-Instruct'
         fetch: true
 
       titleConvo: true
