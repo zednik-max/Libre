@@ -154,20 +154,6 @@ endpoints:
       titleModel: 'google/gemma-3-4b-it:free'
       modelDisplayLabel: 'OpenRouter'
       dropParams: ['stop']
-      favoriteModels:
-        - 'moonshotai/kimi-k2'
-        - 'google/gemma-3-4b-it:free'
-        - 'deepseek/deepseek-chat-v3-0324:free'
-        - 'meta-llama/llama-3.2-3b-instruct:free'
-      modelFilterOptions:
-        exclude:
-          - '.*gpt.*'
-          - '.*gemini.*'
-          - '.*claude.*'
-          - 'openai/.*'
-          - 'anthropic/.*'
-          - '.*deprecated.*'
-          - 'old-model-.*'
 
     # HuggingFace Inference API
     - name: 'HuggingFace'
@@ -181,19 +167,6 @@ endpoints:
       titleConvo: true
       titleModel: 'meta-llama/Llama-3.2-3B-Instruct'
       modelDisplayLabel: 'HuggingFace'
-      favoriteModels:
-        - 'meta-llama/Llama-3.2-3B-Instruct'
-        - 'Qwen/Qwen2.5-72B-Instruct'
-        - 'mistralai/Mistral-7B-Instruct-v0.3'
-      modelFilterOptions:
-        exclude:
-          - '.*gpt.*'
-          - '.*gemini.*'
-          - '.*claude.*'
-          - 'openai/.*'
-          - 'anthropic/.*'
-          - '.*deprecated.*'
-          - 'old-model-.*'
 
     # Z.ai (Zhipu AI) - GLM models
     - name: 'Z.ai'
