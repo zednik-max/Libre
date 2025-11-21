@@ -127,7 +127,7 @@ ZAI_API_KEY=xxxxxxxxxxxxx
 ```yaml
 - name: 'Z.ai'
   apiKey: '${ZAI_API_KEY}'
-  baseURL: 'https://api.z.ai/api/paas/v4'  # Official Z.ai endpoint
+  baseURL: 'https://api.z.ai/api/coding/paas/v4'  # Official Z.ai endpoint
 
   models:
     default:
