@@ -165,6 +165,8 @@ endpoints:
           - '.*claude.*'
           - 'openai/.*'
           - 'anthropic/.*'
+          - '.*deprecated.*'
+          - 'old-model-.*'
 
     # HuggingFace Inference API
     - name: 'HuggingFace'
