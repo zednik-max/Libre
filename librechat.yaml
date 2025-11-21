@@ -155,18 +155,20 @@ endpoints:
       modelDisplayLabel: 'OpenRouter'
       dropParams: ['stop']
 
-    # HuggingFace Inference API
+    # HuggingFace Inference API (new router endpoint - 2025)
     - name: 'HuggingFace'
       apiKey: '${HUGGINGFACE_TOKEN}'
-      baseURL: 'https://api-inference.huggingface.co/v1'
+      baseURL: 'https://router.huggingface.co/v1'
 
       models:
         default:
-          - 'meta-llama/Llama-3.2-3B-Instruct'
-        fetch: true
+          - 'meta-llama/Llama-3.2-3B-Instruct:auto'
+          - 'Qwen/Qwen2.5-72B-Instruct:auto'
+          - 'mistralai/Mistral-7B-Instruct-v0.3:auto'
+        fetch: false  # New API requires :provider suffix, disable fetch
 
       titleConvo: true
-      titleModel: 'meta-llama/Llama-3.2-3B-Instruct'
+      titleModel: 'meta-llama/Llama-3.2-3B-Instruct:auto'
       modelDisplayLabel: 'HuggingFace'
 
     # Z.ai (Zhipu AI) - GLM models
