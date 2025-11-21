@@ -73,30 +73,35 @@ HUGGINGFACE_TOKEN=hf_xxxxxxxxxxxxx
 ```yaml
 - name: 'HuggingFace'
   apiKey: '${HUGGINGFACE_TOKEN}'
-  baseURL: 'https://router.huggingface.co/v1'  # NEW endpoint (2025)
+  baseURL: 'https://router.huggingface.co/v1'
 
   models:
     default:
-      - 'meta-llama/Llama-3.2-3B-Instruct:auto'
-      - 'Qwen/Qwen2.5-72B-Instruct:auto'
-      - 'mistralai/Mistral-7B-Instruct-v0.3:auto'
-    fetch: false  # Disable - new API requires :provider suffix
+      - 'meta-llama/Llama-3.2-3B-Instruct:together'
+      - 'Qwen/Qwen2.5-72B-Instruct:together'
+      - 'mistralai/Mistral-7B-Instruct-v0.3:together'
+    fetch: false  # Requires :provider suffix, cannot auto-fetch
 
   titleConvo: true
-  titleModel: 'meta-llama/Llama-3.2-3B-Instruct:auto'
+  titleModel: 'meta-llama/Llama-3.2-3B-Instruct:together'
   modelDisplayLabel: 'HuggingFace'
 ```
 
 ### Model Format
 
-Models now require a provider suffix:
-- `:auto` - Automatically select provider
-- `:fastest` - Highest throughput
-- `:cheapest` - Lowest price
-- `:together` - Use Together AI
-- `:fireworks` - Use Fireworks AI
+Models MUST include a provider suffix. **`:auto` does NOT work!**
 
-Example: `meta-llama/Llama-3.2-3B-Instruct:auto`
+Valid providers:
+- `:together` - Together AI (recommended)
+- `:fireworks-ai` - Fireworks AI
+- `:cerebras` - Cerebras
+- `:groq` - Groq
+- `:sambanova` - SambaNova
+- `:novita` - Novita AI
+- `:fastest` - Auto-select fastest provider
+- `:cheapest` - Auto-select cheapest provider
+
+Example: `meta-llama/Llama-3.2-3B-Instruct:together`
 
 ### Get API Key
 
@@ -122,7 +127,7 @@ ZAI_API_KEY=xxxxxxxxxxxxx
 ```yaml
 - name: 'Z.ai'
   apiKey: '${ZAI_API_KEY}'
-  baseURL: 'https://api.z.ai/v1'  # OpenAI-compatible endpoint
+  baseURL: 'https://api.z.ai/api/paas/v4'  # Official Z.ai endpoint
 
   models:
     default:

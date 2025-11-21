@@ -155,26 +155,27 @@ endpoints:
       modelDisplayLabel: 'OpenRouter'
       dropParams: ['stop']
 
-    # HuggingFace Inference API (new router endpoint - 2025)
+    # HuggingFace Inference API (router endpoint - 2025)
+    # Valid providers: together, fireworks-ai, cerebras, groq, sambanova, novita
     - name: 'HuggingFace'
       apiKey: '${HUGGINGFACE_TOKEN}'
       baseURL: 'https://router.huggingface.co/v1'
 
       models:
         default:
-          - 'meta-llama/Llama-3.2-3B-Instruct:auto'
-          - 'Qwen/Qwen2.5-72B-Instruct:auto'
-          - 'mistralai/Mistral-7B-Instruct-v0.3:auto'
-        fetch: false  # New API requires :provider suffix, disable fetch
+          - 'meta-llama/Llama-3.2-3B-Instruct:together'
+          - 'Qwen/Qwen2.5-72B-Instruct:together'
+          - 'mistralai/Mistral-7B-Instruct-v0.3:together'
+        fetch: false  # Requires :provider suffix, cannot auto-fetch
 
       titleConvo: true
-      titleModel: 'meta-llama/Llama-3.2-3B-Instruct:auto'
+      titleModel: 'meta-llama/Llama-3.2-3B-Instruct:together'
       modelDisplayLabel: 'HuggingFace'
 
     # Z.ai (Zhipu AI) - GLM models
     - name: 'Z.ai'
       apiKey: '${ZAI_API_KEY}'
-      baseURL: 'https://api.z.ai/v1'
+      baseURL: 'https://api.z.ai/api/paas/v4'
 
       models:
         default:
