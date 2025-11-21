@@ -593,7 +593,12 @@ async def chat_completions(request: Request):
                                     if endpoint_num < len(endpoints_to_try) - 1:
                                         break  # Break retry loop, continue to next endpoint
 
-                                # Non-retryable error or all retries exhausted
+                                # Non-retryable error (e.g., 400, 404) or all retries exhausted
+                                # For non-retryable errors, immediately try next endpoint if available
+                                if endpoint_num < len(endpoints_to_try) - 1:
+                                    break  # Try next endpoint without retrying
+
+                                # No more endpoints to try
                                 await client.aclose()
 
                                 # Cleanup GCS temp files
@@ -657,13 +662,20 @@ async def chat_completions(request: Request):
                             print(error_msg)
                             last_error = error_msg
 
-                            # Try next retry attempt if available
-                            if retry_attempt < RETRY_CONFIG["max_retries"]:
-                                continue
+                            # Retry on 429, 503, 500 errors (retryable errors)
+                            if response.status_code in [429, 500, 503]:
+                                # Try next retry attempt if available
+                                if retry_attempt < RETRY_CONFIG["max_retries"]:
+                                    continue
 
-                            # Max retries reached for this endpoint, try next endpoint
+                                # Max retries reached for this endpoint, try next endpoint
+                                if endpoint_num < len(endpoints_to_try) - 1:
+                                    break  # Break retry loop, continue to next endpoint
+
+                            # Non-retryable error (e.g., 400, 404) or all retries exhausted
+                            # For non-retryable errors, immediately try next endpoint if available
                             if endpoint_num < len(endpoints_to_try) - 1:
-                                break  # Break retry loop, continue to next endpoint
+                                break  # Try next endpoint without retrying
 
                             # No more endpoints to try
                             await client.aclose()
