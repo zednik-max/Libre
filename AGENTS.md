@@ -122,7 +122,11 @@ cd client && npm run dev
 **Key Files**:
 ```
 packages/data-schemas/src/schema/agent.ts      # Agent MongoDB schema
-api/server/routes/agents.js                    # Agent CRUD routes
+api/server/routes/agents/                       # Agent routes directory
+  ├── v1.js                                     # Agent CRUD routes
+  ├── chat.js                                   # Agent chat routes
+  ├── actions.js                                # Agent action routes
+  └── tools.js                                  # Agent tool routes
 api/server/services/Endpoints/agents/          # Agent services
   ├── agent.js                                  # Agent initialization
   ├── initialize.js                             # Tool loading
