@@ -1,6 +1,7 @@
 # Custom LibreChat image with Judge0 Code Interpreter integration
 # Uses production image as base - frontend is pre-built and working
-FROM ghcr.io/danny-avila/librechat:latest
+# Pinned to v0.8.1-rc1 to match local code version
+FROM ghcr.io/danny-avila/librechat:v0.8.1-rc1
 
 WORKDIR /app
 
