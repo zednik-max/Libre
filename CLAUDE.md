@@ -1,0 +1,1 @@
+- when asked about settings always start with .example files and @README.md
