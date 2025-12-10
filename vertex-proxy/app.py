@@ -20,7 +20,27 @@ app = FastAPI()
 
 # Load service account credentials
 SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/gcp-sa-key.json")
-PROJECT_ID = "vertex-ai-project-skorec"
+
+# Auto-detect project ID from service account key
+def get_project_id():
+    """Extract project ID from service account JSON"""
+    try:
+        with open(SERVICE_ACCOUNT_FILE, 'r') as f:
+            sa_data = json.load(f)
+            return sa_data.get('project_id')
+    except Exception as e:
+        print(f"Warning: Could not read project_id from {SERVICE_ACCOUNT_FILE}: {e}")
+        return os.getenv("GCP_PROJECT_ID", "vertex--project-durovcik")
+
+PROJECT_ID = get_project_id()
+
+# Print on startup
+@app.on_event("startup")
+async def startup_event():
+    print(f"=== Vertex AI Proxy Started ===")
+    print(f"Using GCP Project: {PROJECT_ID}")
+    print(f"Service Account: {SERVICE_ACCOUNT_FILE}")
+    print(f"===============================")
 
 # GCS bucket for temporary OCR image storage
 # DeepSeek OCR only accepts gs:// URLs, not base64
